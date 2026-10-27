@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  brainnote:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brainnote-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - AI_PROVIDER=gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+    env_file:
+      - .env.local
