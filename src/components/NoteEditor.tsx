@@ -26,11 +26,17 @@ import {
   Award,
   BookOpen,
   LayoutGrid,
-  Share2
+  Share2,
+  Briefcase,
+  Code2,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+  Filter
 } from 'lucide-react';
-import { Note, AIArtifactType, QuizQuestion, ActionItem, Flashcard, AIArtifact } from '@/types';
+import { Note, AIArtifactType, QuizQuestion, ActionItem, Flashcard, AIArtifact, InterviewQuestion } from '@/types';
 
-export type NoteEditorTab = 'content' | 'summary' | 'actions' | 'flashcards' | 'quiz' | 'qa';
+export type NoteEditorTab = 'content' | 'summary' | 'actions' | 'flashcards' | 'quiz' | 'qa' | 'interview_qa';
 
 interface NoteEditorProps {
   note: Note | null;
@@ -87,6 +93,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [newActionDueDate, setNewActionDueDate] = useState('');
   const [isAddingAction, setIsAddingAction] = useState(false);
 
+  // Interview Q&A State
+  const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>({});
+  const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [interviewStatuses, setInterviewStatuses] = useState<Record<string, 'needs_practice' | 'mastered'>>({});
+
   if (!note) {
     return (
       <div style={{
@@ -108,6 +121,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const actionsArtifact = note.aiArtifacts?.find((a) => a.artifactType === 'action_items');
   const flashcardArtifact = note.aiArtifacts?.find((a) => a.artifactType === 'flashcards');
   const quizArtifact = note.aiArtifacts?.find((a) => a.artifactType === 'quiz');
+  const interviewArtifact = note.aiArtifacts?.find((a) => a.artifactType === 'interview_qa');
 
   // Normalized collections
   const actionItems: ActionItem[] = actionsArtifact?.content?.actionItems || [];
@@ -115,6 +129,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const quizQuestions: QuizQuestion[] = 
     quizArtifact?.content?.quiz?.questions || 
     (quizArtifact?.content as any)?.questions || 
+    [];
+  const interviewQuestions: InterviewQuestion[] = 
+    interviewArtifact?.content?.interviewQA?.questions ||
+    (interviewArtifact?.content as any)?.questions ||
     [];
 
   // Note Metadata Handlers
@@ -263,7 +281,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   // Folio Template Inserter
-  const insertTemplate = (type: 'todo' | 'notes' | 'summary') => {
+  const insertTemplate = (type: 'todo' | 'notes' | 'summary' | 'interview') => {
     let snippet = '';
     if (type === 'todo') {
       snippet = `\n\n### Action Items & Deliverables\n- [ ] Finalize browser extension side panel packaging\n- [ ] Verify source citation anchors against YouTube timestamp stream\n- [ ] Audit GDPR data export and deletion endpoints for tenant compliance\n`;
@@ -271,6 +289,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       snippet = `\n\n### Key Concepts & Workflow\n1. **Core Insight:** High-motion consistency without watermarks.\n2. **Image-to-Video Anchor:** Maintain subject character identity across frames.\n3. **Production Pipeline:** Generate keyframe starter images in Midjourney or Flux, then animate with Kling AI or Luma.\n`;
     } else if (type === 'summary') {
       snippet = `\n\n### Synthesis & Key Takeaways\n- **Primary Thesis:** Modern diffusion transformers simulate realistic physical motion without post-processing watermarks.\n- **Recommended Next Step:** Test high-fps exports with custom camera prompts.\n`;
+    } else if (type === 'interview') {
+      snippet = `\n\n### 💼 Technical Interview Preparation: Key Architecture Q&A\n**Q: How do you architect a custom LLM evaluation harness in Python from scratch?**\n- **Modular Design:** Decouple into 4 components: Dataset Manager, Model Interface, Metrics Pipeline, and Results Logger.\n- **Key Interview Criteria:** Demonstrating rate-limiting & exponential backoff, handling multiple models (OpenAI, Gemini, local vLLM), combining deterministic (Exact Match/F1) with semantic embeddings, and mitigating LLM-as-a-judge position bias.\n\n\`\`\`python\n# Minimal Evaluation Harness Loop\nfor sample in test_dataset:\n    output = model(sample.prompt)\n    score = metric(output, sample.expected)\n\`\`\`\n`;
     }
     onUpdateNote({ ...note, content: note.content + snippet, updatedAt: new Date().toISOString() });
   };
@@ -410,6 +430,26 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           >
             <GraduationCap size={14} color={activeTab === 'quiz' ? '#B45309' : '#D97706'} />
             <span>Quiz ({quizQuestions.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('interview_qa')}
+            style={{
+              padding: '7px 14px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              background: activeTab === 'interview_qa' ? '#D1FAE5' : 'transparent',
+              color: activeTab === 'interview_qa' ? '#065F46' : '#64748B',
+              border: activeTab === 'interview_qa' ? '1px solid #A7F3D0' : '1px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Briefcase size={14} color={activeTab === 'interview_qa' ? '#047857' : '#059669'} />
+            <span>Interview Q&A ({interviewQuestions.length})</span>
           </button>
 
           <button
@@ -598,6 +638,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 >
                   + Reflection
                 </button>
+                <button
+                  onClick={() => insertTemplate('interview')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' }}
+                >
+                  + Interview Rubric
+                </button>
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -608,6 +655,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   style={{ fontSize: '0.74rem', padding: '4px 10px' }}
                 >
                   <Sparkles size={12} color="#6552A3" /> Summary
+                </button>
+                <button
+                  onClick={() => onGenerateAI('interview_qa')}
+                  disabled={isGeneratingAI}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', background: '#ECFDF5', borderColor: '#A7F3D0', color: '#047857', fontWeight: 700 }}
+                >
+                  <Briefcase size={12} color="#059669" /> Interview Q&amp;A
                 </button>
                 <button
                   onClick={() => onGenerateAI('action_items')}
@@ -632,6 +687,115 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   style={{ fontSize: '0.74rem', padding: '4px 10px' }}
                 >
                   <GraduationCap size={12} color="#B45309" /> Quiz
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Ask AI / Web Notes & Interview Assistant Banner */}
+            <div style={{
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '14px 18px',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="#7C3AED" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A' }}>
+                    AI Note &amp; Technical Interview Assistant
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => onGenerateAI('summary')}
+                    disabled={isGeneratingAI}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: '#EDE9FE',
+                      border: '1px solid #DDD6FE',
+                      color: '#6D28D9',
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Sparkles size={12} />
+                    <span>Take Deep Notes</span>
+                  </button>
+                  <button
+                    onClick={() => onGenerateAI('interview_qa')}
+                    disabled={isGeneratingAI}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: '#D1FAE5',
+                      border: '1px solid #A7F3D0',
+                      color: '#047857',
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Briefcase size={12} />
+                    <span>Generate Interview Q&amp;A</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Prompt Input Box */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Ask AI: e.g. 'Synthesize custom evaluation loop into bullet points', 'Create 5 Senior Q&A on LLM-as-a-judge'..."
+                  value={qaQuestion}
+                  onChange={(e) => setQaQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (qaQuestion.toLowerCase().includes('interview') || qaQuestion.toLowerCase().includes('question')) {
+                        onGenerateAI('interview_qa');
+                      } else {
+                        onGenerateAI('summary');
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    background: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '0.82rem',
+                    color: '#0F172A',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (qaQuestion.toLowerCase().includes('interview') || qaQuestion.toLowerCase().includes('question')) {
+                      onGenerateAI('interview_qa');
+                    } else {
+                      onGenerateAI('summary');
+                    }
+                  }}
+                  disabled={isGeneratingAI}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '8px 14px', borderRadius: '8px' }}
+                >
+                  <Send size={13} />
+                  <span>Ask AI</span>
                 </button>
               </div>
             </div>
@@ -1510,6 +1674,416 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab: Technical Interview Preparation & Model Answers */}
+        {activeTab === 'interview_qa' && (
+          <div style={{
+            background: '#FFFFFF',
+            border: '1px solid #E8E5DF',
+            borderRadius: '16px',
+            padding: '28px',
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            {/* Header & Controls */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              marginBottom: '24px',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#065F46', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Briefcase size={20} color="#059669" />
+                  <span>Technical Interview Preparation Studio</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '4px' }}>
+                  Master concepts from this note with senior-level interview questions, model answers, code patterns, and grading rubrics.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={() => onGenerateAI('interview_qa')}
+                  disabled={isGeneratingAI}
+                  className="btn btn-primary"
+                  style={{
+                    background: '#059669',
+                    fontSize: '0.8rem',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>{isGeneratingAI ? 'Generating Questions...' : '+ Add / Regenerate Questions'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filters & Mastery Tracker */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              marginBottom: '24px',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Filter size={14} color="#166534" />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Difficulty:
+                  </span>
+                  <select
+                    value={difficultyFilter}
+                    onChange={(e) => setDifficultyFilter(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #86EFAC',
+                      background: '#FFFFFF',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#166534',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="All">All Levels</option>
+                    <option value="Junior">Junior</option>
+                    <option value="Mid-Level">Mid-Level</option>
+                    <option value="Senior">Senior</option>
+                    <option value="Staff/Principal">Staff/Principal</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Category:
+                  </span>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #86EFAC',
+                      background: '#FFFFFF',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#166534',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Conceptual">Conceptual</option>
+                    <option value="Coding & Architecture">Coding & Architecture</option>
+                    <option value="System Design">System Design</option>
+                    <option value="Evaluation & Edge Cases">Evaluation & Edge Cases</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Award size={16} color="#059669" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#166534' }}>
+                  Mastered: {Object.values(interviewStatuses).filter(s => s === 'mastered').length} of {interviewQuestions.length} Questions
+                </span>
+              </div>
+            </div>
+
+            {/* Questions List */}
+            {interviewQuestions.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '48px 24px',
+                background: '#FAF8F5',
+                borderRadius: '12px',
+                border: '1px dashed #CBD5E1',
+              }}>
+                <Briefcase size={36} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
+                <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
+                  No interview questions generated yet
+                </h4>
+                <p style={{ fontSize: '0.84rem', color: '#64748B', maxWidth: '420px', margin: '0 auto 18px' }}>
+                  Click the button below to have Brainnote AI analyze this note and generate technical questions, model answers, and code implementations.
+                </p>
+                <button
+                  onClick={() => onGenerateAI('interview_qa')}
+                  disabled={isGeneratingAI}
+                  className="btn btn-primary"
+                  style={{ background: '#059669', padding: '10px 20px', fontSize: '0.85rem' }}
+                >
+                  <Sparkles size={15} />
+                  <span>{isGeneratingAI ? 'Synthesizing Questions...' : 'Generate Interview Questions with AI'}</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {interviewQuestions
+                  .filter((q) => {
+                    const matchDiff = difficultyFilter === 'All' || q.difficulty === difficultyFilter;
+                    const matchCat = categoryFilter === 'All' || q.category === categoryFilter;
+                    return matchDiff && matchCat;
+                  })
+                  .map((q, idx) => {
+                    const isRevealed = !!revealedAnswers[q.id];
+                    const status = interviewStatuses[q.id] || 'unreviewed';
+
+                    return (
+                      <div
+                        key={q.id || idx}
+                        style={{
+                          background: '#FAF8F5',
+                          border: status === 'mastered' ? '1.5px solid #86EFAC' : '1px solid #E8E5DF',
+                          borderRadius: '14px',
+                          padding: '24px',
+                          boxShadow: 'var(--shadow-sm)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {/* Question Badges & Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              background: q.difficulty === 'Staff/Principal' ? '#FEF3C7' : q.difficulty === 'Senior' ? '#EDE9FE' : '#E0F2FE',
+                              color: q.difficulty === 'Staff/Principal' ? '#B45309' : q.difficulty === 'Senior' ? '#6552A3' : '#0369A1',
+                              border: `1px solid ${q.difficulty === 'Staff/Principal' ? '#FDE68A' : q.difficulty === 'Senior' ? '#DDD6FE' : '#BAE6FD'}`,
+                            }}>
+                              {q.difficulty}
+                            </span>
+
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              background: '#F1F5F9',
+                              color: '#475569',
+                              border: '1px solid #E2E8F0',
+                            }}>
+                              {q.category}
+                            </span>
+
+                            {status === 'mastered' && (
+                              <span style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                background: '#DCFCE7',
+                                color: '#15803D',
+                                border: '1px solid #86EFAC',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}>
+                                <Check size={12} /> Mastered
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => {
+                                setInterviewStatuses((prev) => ({
+                                  ...prev,
+                                  [q.id]: status === 'mastered' ? 'needs_practice' : 'mastered',
+                                }));
+                              }}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: status === 'mastered' ? '#15803D' : '#64748B',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Award size={13} color={status === 'mastered' ? '#15803D' : '#94A3B8'} />
+                              <span>{status === 'mastered' ? 'Marked Mastered' : 'Mark as Mastered'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Question Prompt */}
+                        <h4 style={{
+                          fontSize: '1.05rem',
+                          fontWeight: 800,
+                          color: '#18171C',
+                          lineHeight: '1.5',
+                          marginBottom: '16px',
+                        }}>
+                          Q{idx + 1}: {q.question}
+                        </h4>
+
+                        {/* Toggle Reveal Answer Button */}
+                        <button
+                          onClick={() => {
+                            setRevealedAnswers((prev) => ({
+                              ...prev,
+                              [q.id]: !prev[q.id],
+                            }));
+                          }}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            background: isRevealed ? '#F1F5F9' : '#EDE9FE',
+                            border: `1px solid ${isRevealed ? '#CBD5E1' : '#DDD6FE'}`,
+                            color: isRevealed ? '#475569' : '#6552A3',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            marginBottom: isRevealed ? '16px' : '0',
+                          }}
+                        >
+                          {isRevealed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          <span>{isRevealed ? 'Hide Model Answer' : 'Reveal Model Answer & Grading Rubric'}</span>
+                        </button>
+
+                        {/* Model Answer Drawer */}
+                        {isRevealed && (
+                          <div style={{
+                            marginTop: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '16px',
+                            animation: 'fadeIn 0.2s ease-in',
+                          }}>
+                            {/* Answer Box */}
+                            <div style={{
+                              background: '#FFFFFF',
+                              border: '1px solid #E8E5DF',
+                              borderRadius: '12px',
+                              padding: '18px 20px',
+                            }}>
+                              <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+                                ✓ Authoritative Model Answer
+                              </div>
+                              <p style={{ fontSize: '0.92rem', lineHeight: '1.65', color: '#1F2937', margin: 0 }}>
+                                {q.answer}
+                              </p>
+                            </div>
+
+                            {/* Key Evaluation Criteria (Interviewer Rubric) */}
+                            {q.keyCriteria && q.keyCriteria.length > 0 && (
+                              <div style={{
+                                background: '#F0FDF4',
+                                border: '1px solid #BBF7D0',
+                                borderRadius: '12px',
+                                padding: '16px 20px',
+                              }}>
+                                <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+                                  🎯 What Interviewers Look For (Key Evaluation Criteria)
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {q.keyCriteria.map((item, cIdx) => (
+                                    <li key={cIdx} style={{ fontSize: '0.84rem', color: '#166534', lineHeight: '1.45' }}>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Code Snippet (if available) */}
+                            {q.codeSnippet && (
+                              <div style={{
+                                background: '#0F172A',
+                                borderRadius: '12px',
+                                padding: '16px 20px',
+                                position: 'relative',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94A3B8', fontSize: '0.74rem', fontWeight: 700 }}>
+                                    <Code2 size={13} />
+                                    <span>Python Architecture Implementation</span>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(q.codeSnippet || '');
+                                      setCopiedCodeId(q.id);
+                                      setTimeout(() => setCopiedCodeId(null), 2000);
+                                    }}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.1)',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      padding: '4px 10px',
+                                      color: '#E2E8F0',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    <Copy size={12} />
+                                    <span>{copiedCodeId === q.id ? 'Copied!' : 'Copy Code'}</span>
+                                  </button>
+                                </div>
+                                <pre style={{
+                                  margin: 0,
+                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                  fontSize: '0.82rem',
+                                  color: '#38BDF8',
+                                  lineHeight: '1.5',
+                                  overflowX: 'auto',
+                                }}>
+                                  {q.codeSnippet}
+                                </pre>
+                              </div>
+                            )}
+
+                            {/* Follow-up Probing Questions */}
+                            {q.followUpQuestions && q.followUpQuestions.length > 0 && (
+                              <div style={{
+                                background: '#FFFBEB',
+                                border: '1px solid #FDE68A',
+                                borderRadius: '12px',
+                                padding: '16px 20px',
+                              }}>
+                                <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+                                  ⚡ Likely Interviewer Follow-Up Questions
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {q.followUpQuestions.map((fQ, fIdx) => (
+                                    <li key={fIdx} style={{ fontSize: '0.84rem', color: '#92400E', lineHeight: '1.45' }}>
+                                      {fQ}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
 

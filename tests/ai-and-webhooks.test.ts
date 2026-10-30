@@ -7,7 +7,8 @@ import {
   generateSummary, 
   generateMeetingMinutes, 
   generateActionItems, 
-  generateFlashcards 
+  generateFlashcards,
+  generateInterviewQA 
 } from '../src/lib/ai-provider';
 
 describe('Phase 2 AI Generation Pipelines', () => {
@@ -46,5 +47,22 @@ For SaaS platforms, strict multi-tenant database isolation is non-negotiable.`;
     expect(res.result.flashcards.length).toBeGreaterThanOrEqual(2);
     expect(res.result.flashcards[0]).toHaveProperty('front');
     expect(res.result.flashcards[0]).toHaveProperty('back');
+  });
+
+  it('generates technical interview questions with model answers, rubrics, and code patterns', async () => {
+    const res = await generateInterviewQA(
+      'Building a Custom LLM Evaluation Harness in Python from Scratch',
+      'The 4 modular components include Dataset Manager, Model Interface, Metrics Pipeline, and Results Logger.'
+    );
+    expect(res.result.questions).toBeDefined();
+    expect(res.result.questions.length).toBeGreaterThanOrEqual(3);
+    const firstQ = res.result.questions[0];
+    expect(firstQ).toHaveProperty('question');
+    expect(firstQ).toHaveProperty('answer');
+    expect(firstQ).toHaveProperty('keyCriteria');
+    expect(firstQ.keyCriteria.length).toBeGreaterThan(0);
+    expect(firstQ).toHaveProperty('difficulty');
+    expect(['Junior', 'Mid-Level', 'Senior', 'Staff/Principal']).toContain(firstQ.difficulty);
+    expect(res.tokensUsed).toBeGreaterThan(0);
   });
 });

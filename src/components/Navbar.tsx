@@ -11,10 +11,12 @@ import {
   Building2, 
   BarChart2,
   ShieldCheck,
-  Share2
+  Share2,
+  Globe
 } from 'lucide-react';
 import { TenantDataset } from '@/lib/mock-data';
 import { getTrialStatus } from '@/lib/billing';
+import { SourceType } from '@/types';
 import { BrainnoteLogo } from './BrainnoteLogo';
 
 interface NavbarProps {
@@ -22,7 +24,7 @@ interface NavbarProps {
   allDatasets: Record<string, TenantDataset>;
   onSelectTenant: (tenantId: string) => void;
   onOpenNewNote: () => void;
-  onOpenIngest: () => void;
+  onOpenIngest: (initialTab?: SourceType) => void;
   onOpenBilling: () => void;
   onOpenShare?: () => void;
 }
@@ -157,9 +159,30 @@ export const Navbar: React.FC<NavbarProps> = ({
           </span>
         </div>
 
+        {/* Search Web Sources & Take Notes Button */}
+        <button
+          onClick={() => onOpenIngest('web')}
+          className="btn btn-secondary"
+          style={{
+            fontSize: '0.82rem',
+            padding: '8px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: '#F0F9FF',
+            border: '1px solid #BAE6FD',
+            color: '#0284C7',
+            fontWeight: 700,
+          }}
+          title="Search web sources, enter article URLs (e.g. Machine Learning Mastery), and generate interview Q&A"
+        >
+          <Globe size={14} color="#0284C7" />
+          <span>Web &amp; Notes</span>
+        </button>
+
         {/* Ingest Source Button */}
         <button
-          onClick={onOpenIngest}
+          onClick={() => onOpenIngest()}
           className="btn btn-secondary"
           style={{ fontSize: '0.82rem', padding: '8px 14px' }}
         >

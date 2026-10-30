@@ -12,7 +12,9 @@ import {
   Settings, 
   Folder as FolderIcon, 
   Tag as TagIcon, 
-  Cpu 
+  Cpu,
+  Globe,
+  Briefcase
 } from 'lucide-react';
 import { Folder, Tag, UsageRecord, SourceType, PrimaryNavSection } from '@/types';
 
@@ -25,9 +27,11 @@ interface SidebarProps {
   activeFilter: string;
   onSelectFilter: (filter: string) => void;
   notesCount: number;
+  webCount?: number;
   meetingsCount: number;
   documentsCount: number;
   videosCount: number;
+  interviewPrepCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,9 +43,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFilter,
   onSelectFilter,
   notesCount,
+  webCount = 0,
   meetingsCount,
   documentsCount,
   videosCount,
+  interviewPrepCount = 0,
 }) => {
   const tokenPercent = Math.min(100, Math.round((usage.aiTokensConsumed / usage.aiTokensLimit) * 100));
   const storageMB = (usage.storageBytesConsumed / (1024 * 1024)).toFixed(0);
@@ -112,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       overflowY: 'auto',
     }}>
       <div>
-        {/* 8 Primary Navigation Sections */}
+        {/* 10 Primary Navigation Sections */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{
             fontSize: '0.72rem',
@@ -127,6 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {navSectionItem('home', 'Home', <Home size={16} color={currentSection === 'home' ? '#6D28D9' : '#475569'} />)}
           {navSectionItem('library', 'My Library', <BookOpen size={16} color={currentSection === 'library' ? '#6D28D9' : '#475569'} />, notesCount)}
+          {navSectionItem('web_sources', 'Web & Articles', <Globe size={16} color={currentSection === 'web_sources' ? '#0284C7' : '#475569'} />, webCount)}
+          {navSectionItem('interview_prep', 'Interview Prep (Q&A)', <Briefcase size={16} color={currentSection === 'interview_prep' ? '#059669' : '#475569'} />, interviewPrepCount)}
           {navSectionItem('meetings', 'Meetings', <Mic size={16} color={currentSection === 'meetings' ? '#059669' : '#475569'} />, meetingsCount)}
           {navSectionItem('documents', 'Documents', <FileText size={16} color={currentSection === 'documents' ? '#DC2626' : '#475569'} />, documentsCount)}
           {navSectionItem('videos', 'Videos', <Video size={16} color={currentSection === 'videos' ? '#E11D48' : '#475569'} />, videosCount)}
@@ -135,8 +143,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {navSectionItem('settings', 'Settings', <Settings size={16} color={currentSection === 'settings' ? '#6D28D9' : '#475569'} />)}
         </div>
 
-        {/* Folders (visible when inside library or home) */}
-        {(currentSection === 'library' || currentSection === 'home') && folders.length > 0 && (
+        {/* Folders (visible when inside library, web_sources, or home) */}
+        {(currentSection === 'library' || currentSection === 'web_sources' || currentSection === 'home') && folders.length > 0 && (
           <div style={{ marginBottom: '24px' }}>
             <div style={{ padding: '0 14px 10px', fontSize: '0.72rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Folders
@@ -170,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Tags */}
-        {(currentSection === 'library' || currentSection === 'home') && tags.length > 0 && (
+        {(currentSection === 'library' || currentSection === 'web_sources' || currentSection === 'home') && tags.length > 0 && (
           <div style={{ marginBottom: '24px' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 14px 10px' }}>
               Tags

@@ -15,16 +15,19 @@ export type AIArtifactType =
   | 'study_guide' 
   | 'flashcards' 
   | 'quiz' 
-  | 'qa';
+  | 'qa'
+  | 'interview_qa';
 
 export type PrimaryNavSection = 
   | 'home' 
   | 'library' 
+  | 'web_sources'
   | 'meetings' 
   | 'documents' 
   | 'videos' 
   | 'ai_chat' 
   | 'study_tools' 
+  | 'interview_prep'
   | 'settings';
 
 export interface Tenant {
@@ -143,6 +146,18 @@ export interface ActionItem {
   dueDate?: string;
 }
 
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  difficulty: 'Junior' | 'Mid-Level' | 'Senior' | 'Staff/Principal';
+  category: 'Conceptual' | 'Coding & Architecture' | 'System Design' | 'Evaluation & Edge Cases';
+  answer: string;
+  keyCriteria: string[]; // What the interviewer looks for in the response
+  codeSnippet?: string;
+  followUpQuestions?: string[];
+  userStatus?: 'unreviewed' | 'needs_practice' | 'mastered';
+}
+
 export interface AIArtifact {
   id: string;
   tenantId: string;
@@ -169,6 +184,10 @@ export interface AIArtifact {
       questions: QuizQuestion[];
     };
     qaAnswers?: { question: string; answer: string; citations?: CitationAnchor[] }[];
+    interviewQA?: {
+      questions: InterviewQuestion[];
+    };
+    questions?: InterviewQuestion[] | QuizQuestion[];
   };
   modelUsed: string;
   tokensConsumed: number;

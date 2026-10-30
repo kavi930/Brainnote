@@ -10,6 +10,7 @@ import {
   generateActionItems, 
   generateFlashcards, 
   generateQuiz,
+  generateInterviewQA,
   answerQuestionGrounded 
 } from '@/lib/ai-provider';
 import { updateNoteArtifact } from '@/lib/server-store';
@@ -102,6 +103,20 @@ export async function POST(req: NextRequest) {
         const res = await answerQuestionGrounded(question, title, content || '', sourceTranscript);
         artifactTitle = `Q&A: ${question.slice(0, 30)}...`;
         artifactContent = res.result as unknown as Record<string, unknown>;
+        tokensUsed = res.tokensUsed;
+        modelUsed = res.modelUsed;
+        break;
+      }
+
+      case 'interview_qa': {
+        const res = await generateInterviewQA(title, content || '', sourceTranscript);
+        artifactTitle = 'Interview Ready Questions & Answers';
+        artifactContent = {
+          questions: res.result.questions,
+          interviewQA: {
+            questions: res.result.questions,
+          },
+        };
         tokensUsed = res.tokensUsed;
         modelUsed = res.modelUsed;
         break;

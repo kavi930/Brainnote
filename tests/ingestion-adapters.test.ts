@@ -180,7 +180,42 @@ describe('Phase 3: Source Ingestion Adapters & Security', () => {
     });
   });
 
-  // 4. Prompt-Injection & Safety Neutralization Tests
+  // 4. Web Article & Technical Blog Ingestion Tests
+  describe('Web Article Ingestion Adapter', () => {
+    it('successfully extracts structured notes, 4 architecture modules, and Python code from Machine Learning Mastery LLM eval tutorial', async () => {
+      const res = await processSourceIngestion({
+        tenantId: 'tenant-test',
+        userId: 'user-1',
+        sourceType: 'web',
+        sourceUrl: 'https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/',
+        title: 'Building a Custom LLM Evaluation Harness in Python from Scratch',
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.sourceType).toBe('web');
+      expect(res.extractedText).toContain('Dataset Manager');
+      expect(res.extractedText).toContain('Model Interface');
+      expect(res.extractedText).toContain('Evaluation Metrics & Scoring Pipeline');
+      expect(res.extractedText).toContain('Results Logger');
+      expect(res.extractedText).toContain('CustomLLMEvalHarness');
+      expect(res.citations.length).toBeGreaterThan(0);
+      expect(res.citations[0].sourceType).toBe('web');
+    });
+
+    it('rejects invalid web URLs missing http or https protocol', async () => {
+      const res = await processSourceIngestion({
+        tenantId: 'tenant-test',
+        userId: 'user-1',
+        sourceType: 'web',
+        sourceUrl: 'ftp://ftp.example.com/notes.txt',
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.error?.code).toBe('INVALID_URL');
+    });
+  });
+
+  // 5. Prompt-Injection & Safety Neutralization Tests
   describe('Content Sanitizer & Injection Neutralizer', () => {
     it('neutralizes malicious prompt injection attempts embedded in source texts', () => {
       const maliciousPayload = `

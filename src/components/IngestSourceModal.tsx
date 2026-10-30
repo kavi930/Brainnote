@@ -25,14 +25,23 @@ interface IngestSourceModalProps {
     urlOrFile: string,
     initialNoteContent: string
   ) => void;
+  initialTab?: SourceType;
 }
 
 export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
   isOpen,
   onClose,
   onIngestComplete,
+  initialTab = 'youtube',
 }) => {
-  const [activeTab, setActiveTab] = useState<SourceType>('youtube');
+  const [activeTab, setActiveTab] = useState<SourceType>(initialTab);
+
+  React.useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
   const [urlInput, setUrlInput] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,6 +57,9 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [selectedFileSize, setSelectedFileSize] = useState<number | null>(null);
 
+  // Auto-generate interview prep option
+  const [autoGenerateInterviewQA, setAutoGenerateInterviewQA] = useState(true);
+
   if (!isOpen) return null;
 
   const resetState = () => {
@@ -59,6 +71,7 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
     setErrorSuggestion(null);
     setIsProcessing(false);
     setMeetingConsentConfirmed(false);
+    setAutoGenerateInterviewQA(true);
   };
 
   const handleClose = () => {
@@ -88,6 +101,12 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
 
     if (type === 'youtube' && !urlInput.trim() && !options?.overrideUrl) {
       setErrorMessage('Please enter a valid YouTube video URL.');
+      return;
+    }
+
+    if (type === 'web' && !urlInput.trim() && !options?.overrideUrl) {
+      setErrorMessage('Please enter a valid web article or tutorial URL.');
+      setErrorSuggestion('You can click one of the quick preset chips below (such as Machine Learning Mastery) to test.');
       return;
     }
 
@@ -127,6 +146,26 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
         setErrorMessage(data.error || 'Ingestion failed');
         setErrorSuggestion(data.suggestedAlternative || null);
         return;
+      }
+
+      // Automatically generate Interview Questions & Answers if requested
+      if (autoGenerateInterviewQA && data.noteId) {
+        setStepStatus('Synthesizing technical interview questions & model answers...');
+        try {
+          await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              noteId: data.noteId,
+              title: payloadTitle,
+              content: data.initialMarkdown,
+              artifactType: 'interview_qa',
+              tenantId: 'tenant-acme',
+            }),
+          });
+        } catch {
+          // Non-blocking background generation
+        }
       }
 
       setStepStatus('Structuring knowledge notes with verifiable citations...');
@@ -336,7 +375,7 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
             }}
           >
             <Globe size={16} />
-            <span>Web Clip</span>
+            <span>Web Article</span>
           </button>
         </div>
 
@@ -623,38 +662,167 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
                 </div>
               )}
 
-              {/* Tab 5: Web Page / Selected Text */}
+              {/* Tab 5: Web Article / Search & Technical Research */}
               {activeTab === 'web' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#1E293B', marginBottom: '8px' }}>
-                    Web Article URL or Selection
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://example.com/article"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      color: '#0F172A',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      marginBottom: '16px',
-                    }}
-                  />
+                  <div style={{
+                    padding: '16px 20px',
+                    borderRadius: '12px',
+                    background: '#F0F9FF',
+                    border: '1px solid #BAE6FD',
+                    marginBottom: '20px',
+                  }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0369A1', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Globe size={16} />
+                      <span>Ingest Web Article & Generate Interview Q&A</span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: '#0284C7', margin: 0, lineHeight: '1.45' }}>
+                      Enter any technical blog, research paper, or tutorial URL. Brainnote AI will extract comprehensive notes, code implementations, and synthesize senior-level interview questions.
+                    </p>
+                  </div>
+
+                  {/* 1-Click Test Presets */}
+                  <div style={{ marginBottom: '18px' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+                      ⚡ Quick Test Presets (1-Click Fill):
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUrlInput('https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/');
+                          setCustomTitle('Building a Custom LLM Evaluation Harness in Python from Scratch');
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: urlInput.includes('machinelearningmastery') ? '#EFF6FF' : '#F8FAFC',
+                          border: urlInput.includes('machinelearningmastery') ? '1px solid #3B82F6' : '1px solid #E2E8F0',
+                          color: '#1E293B',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>🔥 Machine Learning Mastery: Custom LLM Evaluation Harness in Python</span>
+                        <span style={{ color: '#3B82F6', fontSize: '0.72rem', fontWeight: 800 }}>Use Preset</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUrlInput('https://stanford.edu/ai-keynote-2026/reasoning-models');
+                          setCustomTitle('Stanford AI Keynote 2026 — Reasoning Models & Multi-Agent Architecture');
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: urlInput.includes('stanford') ? '#EFF6FF' : '#F8FAFC',
+                          border: urlInput.includes('stanford') ? '1px solid #3B82F6' : '1px solid #E2E8F0',
+                          color: '#1E293B',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>🧠 Stanford AI: Reasoning Models & Multi-Agent Architecture</span>
+                        <span style={{ color: '#3B82F6', fontSize: '0.72rem', fontWeight: 800 }}>Use Preset</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                      Web Article URL *
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#F8FAFC',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        color: '#0F172A',
+                        fontSize: '0.88rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                      Custom Note Title (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Building a Custom LLM Evaluation Harness in Python from Scratch"
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#F8FAFC',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        color: '#0F172A',
+                        fontSize: '0.88rem',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Auto-generate Interview Q&A Option */}
+                  <div style={{
+                    background: '#F0FDF4',
+                    border: '1px solid #BBF7D0',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="interview-qa-check"
+                      checked={autoGenerateInterviewQA}
+                      onChange={(e) => setAutoGenerateInterviewQA(e.target.checked)}
+                      style={{ marginTop: '2px', cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                    <label htmlFor="interview-qa-check" style={{ fontSize: '0.8rem', color: '#166534', lineHeight: '1.4', cursor: 'pointer' }}>
+                      <strong>Auto-Generate Technical Interview Q&A:</strong> Automatically synthesize FAANG/Staff-level interview questions, comprehensive model answers, and code patterns from this article.
+                    </label>
+                  </div>
+
                   <button
                     onClick={() => handleExecuteIngest('web', {
-                      overrideTitle: 'The Architecture of Autonomous AI Note Companions in 2026',
-                      overrideUrl: urlInput || 'https://techcrunch.com/2026/autonomous-ai-notes',
+                      overrideTitle: customTitle || (urlInput.includes('machinelearningmastery') ? 'Building a Custom LLM Evaluation Harness in Python from Scratch' : undefined),
+                      overrideUrl: urlInput,
                     })}
                     className="btn btn-primary"
-                    style={{ width: '100%' }}
+                    style={{
+                      width: '100%',
+                      background: '#0284C7',
+                      padding: '12px 20px',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
                   >
-                    Clip Article into Library
+                    <Globe size={16} />
+                    <span>Fetch Article & Generate Notes</span>
                   </button>
                 </div>
               )}

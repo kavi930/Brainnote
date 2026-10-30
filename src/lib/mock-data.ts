@@ -298,6 +298,283 @@ export const INITIAL_TENANTS: Record<string, TenantDataset> = {
         createdAt: '2026-10-27T10:00:00Z',
         updatedAt: '2026-10-27T10:08:00Z',
       },
+      {
+        id: 'note-custom-llm-eval-harness',
+        tenantId: 'tenant-acme',
+        userId: 'user-alex',
+        folderId: 'f-2',
+        title: 'Building a Custom LLM Evaluation Harness in Python from Scratch',
+        content: `# Building a Custom LLM Evaluation Harness in Python from Scratch
+
+**Source URL:** [https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/](https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/)  
+**Publisher:** Machine Learning Mastery (Author: Vinod Chugani)  
+**Category:** LLM Evaluation, Automated Testing & Python Architecture  
+
+---
+
+## 📌 Executive Synopsis & Architectural Breakdown
+Building an in-house evaluation harness gives engineering teams full control over how generative models are tested, benchmarked, and scored before production deployment. While black-box frameworks exist, custom harnesses provide deterministic temperature controls, rate-limit retry handling, proprietary metric injection, and zero data leakage.
+
+### The 4 Modular Components:
+1. **Dataset Manager**: Standardizes schema for test prompts, ground-truth expected answers, and few-shot formatting.
+2. **Model Interface (Inference Layer)**: Wraps API providers (OpenAI, Gemini, Anthropic, vLLM) with exponential backoff and token latency tracking.
+3. **Evaluation Metrics & Scoring Pipeline**:
+   - **Deterministic**: Exact string match, regex extraction, token-level F1, ROUGE-L.
+   - **Semantic**: Dense embedding cosine similarity via Sentence-Transformers (\`all-MiniLM-L6-v2\`).
+   - **Model-Based (LLM-as-a-Judge)**: Multi-criteria rubric evaluation with positional swapping to eliminate bias.
+4. **Results Logger & Reporting Dashboard**: Generates structured JSON/CSV metrics for automated CI/CD gating.
+
+\`\`\`python
+# Custom LLM Evaluation Harness Architecture in Python
+import time
+from typing import List, Dict, Any, Callable
+from dataclasses import dataclass
+
+@dataclass
+class EvalSample:
+    prompt: str
+    expected_answer: str
+    category: str
+
+@dataclass
+class EvalResult:
+    sample: EvalSample
+    generated_text: str
+    score: float
+    latency_ms: float
+    passed: bool
+
+class CustomLLMEvalHarness:
+    def __init__(self, model_fn: Callable[[str], str], metrics: List[Callable[[str, str], float]]):
+        self.model_fn = model_fn
+        self.metrics = metrics
+        self.results: List[EvalResult] = []
+
+    def evaluate(self, dataset: List[EvalSample], threshold: float = 0.8) -> Dict[str, Any]:
+        passed_count = 0
+        total_latency = 0.0
+
+        for sample in dataset:
+            t0 = time.perf_counter()
+            output = self.model_fn(sample.prompt)
+            latency = (time.perf_counter() - t0) * 1000.0
+            total_latency += latency
+
+            scores = [m(output, sample.expected_answer) for m in self.metrics]
+            avg_score = sum(scores) / len(scores) if scores else 0.0
+            is_pass = avg_score >= threshold
+            if is_pass:
+                passed_count += 1
+
+            self.results.append(EvalResult(sample, output, avg_score, latency, is_pass))
+
+        return {
+            "total_samples": len(dataset),
+            "pass_rate": passed_count / len(dataset) if dataset else 0.0,
+            "avg_latency_ms": total_latency / len(dataset) if dataset else 0.0,
+        }
+\`\`\``,
+        isPinned: true,
+        isArchived: false,
+        tags: [
+          { id: 't-web-article', tenantId: 'tenant-acme', name: 'Web Article', color: '#0284C7' },
+          { id: 't-llm-eval', tenantId: 'tenant-acme', name: 'LLM Evaluation', color: '#8B5CF6' },
+          { id: 't-python-dev', tenantId: 'tenant-acme', name: 'Python', color: '#10B981' },
+        ],
+        sources: [
+          {
+            id: 'src-mlm-eval-1',
+            tenantId: 'tenant-acme',
+            noteId: 'note-custom-llm-eval-harness',
+            sourceType: 'web',
+            title: 'Building a Custom LLM Evaluation Harness in Python from Scratch',
+            sourceUrl: 'https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/',
+            processingStatus: 'completed',
+            createdAt: '2026-10-30T10:00:00Z',
+          },
+        ],
+        aiArtifacts: [
+          {
+            id: 'art-mlm-summary',
+            tenantId: 'tenant-acme',
+            noteId: 'note-custom-llm-eval-harness',
+            userId: 'user-alex',
+            artifactType: 'summary',
+            title: 'Executive AI Synthesis: Custom LLM Evaluation Harness',
+            content: {
+              summaryText: 'Detailed synthesis of Vinod Chugani’s Machine Learning Mastery tutorial on architecting a custom LLM evaluation harness in Python. Structured into 4 decoupled components (Dataset Manager, Model Interface, Metrics Pipeline, and Results Logger) to guarantee end-to-end evaluation determinism and cost control.',
+              keyTakeaways: [
+                'Decoupling dataset loading from model inference prevents benchmark data contamination.',
+                'Combining deterministic metrics (Exact Match, F1) with semantic embeddings captures paraphrased answers.',
+                'LLM-as-a-judge requires pairwise positional swapping to eliminate position and verbosity bias.',
+              ],
+            },
+            modelUsed: 'Gemini 1.5 Pro',
+            tokensConsumed: 1850,
+            createdAt: '2026-10-30T10:05:00Z',
+          },
+          {
+            id: 'art-mlm-interview-qa',
+            tenantId: 'tenant-acme',
+            noteId: 'note-custom-llm-eval-harness',
+            userId: 'user-alex',
+            artifactType: 'interview_qa',
+            title: 'Interview Ready Questions & Answers: Custom LLM Eval',
+            content: {
+              questions: [
+                {
+                  id: 'int-mlm-1',
+                  question: 'How do you build a custom LLM evaluation harness in Python from scratch, and why is it preferred over generic frameworks in production?',
+                  difficulty: 'Senior',
+                  category: 'Conceptual',
+                  answer: 'A production custom evaluation harness is structured around four decoupled modules: (1) Dataset Manager to load schema-validated prompt-completion pairs and prevent data leakage, (2) Model Interface with provider-agnostic wrappers, exponential backoff, and concurrency controls, (3) Evaluation Metrics combining exact-match, semantic sentence-transformer embeddings, and LLM-as-a-judge scoring, and (4) Results Logger for auditability. Custom harnesses are preferred because off-the-shelf frameworks (like LM-Eval or generic LangChain evaluators) obscure prompt variations, hide retry behavior, and lack native integration with proprietary internal metrics and cost/latency SLAs.',
+                  keyCriteria: [
+                    'Identifies the 4 decoupled abstractions: Dataset Manager, Model Interface, Metrics Pipeline, and Results Logger.',
+                    'Articulates specific production trade-offs (custom concurrency, avoiding hidden framework prompts).',
+                    'Distinguishes between deterministic reference-based vs. semantic/LLM-as-a-judge metrics.',
+                    'Discusses data contamination prevention between test and fine-tuning splits.',
+                  ],
+                  codeSnippet: `class CustomLLMEvalHarness:
+    def __init__(self, model_client, metrics: List[Callable]):
+        self.model = model_client
+        self.metrics = metrics
+
+    def run_eval(self, dataset: List[EvalSample]) -> EvalSummary:
+        # Decoupled inference and metric evaluation loop
+        ...`,
+                  followUpQuestions: [
+                    'How do you statistically verify that your evaluation dataset has not leaked into the training corpus of the LLM?',
+                    'How would you handle non-deterministic LLM temperature variations across repeated evaluation runs?',
+                  ],
+                  userStatus: 'mastered',
+                },
+                {
+                  id: 'int-mlm-2',
+                  question: 'Implement an asynchronous evaluation scoring pipeline in Python that evaluates batch completions across both exact match and semantic cosine similarity.',
+                  difficulty: 'Mid-Level',
+                  category: 'Coding & Architecture',
+                  answer: 'We define an asynchronous scoring pipeline using asyncio and sentence-transformers. The pipeline decouples generation from scoring, normalizes text outputs (lowercasing, punctuation stripping), and computes both exact-string match and dense embedding similarity.',
+                  keyCriteria: [
+                    'Clean Python type hinting and dataclasses for sample representation.',
+                    'Proper text normalization prior to exact matching.',
+                    'Correct vector cosine similarity calculation for semantic comparison.',
+                    'Error handling for empty completions or embedding timeouts.',
+                  ],
+                  codeSnippet: `import asyncio
+import numpy as np
+from typing import List, Dict
+
+def compute_cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
+    dot = np.dot(vec_a, vec_b)
+    norm = np.linalg.norm(vec_a) * np.linalg.norm(vec_b)
+    return float(dot / norm) if norm > 0 else 0.0
+
+def score_sample(prediction: str, ground_truth: str, embed_fn) -> Dict[str, float]:
+    norm_pred = prediction.strip().lower()
+    norm_gt = ground_truth.strip().lower()
+    
+    exact_match = 1.0 if norm_pred == norm_gt else 0.0
+    vec_p = embed_fn(norm_pred)
+    vec_gt = embed_fn(norm_gt)
+    semantic_sim = compute_cosine_similarity(vec_p, vec_gt)
+    
+    return {
+        "exact_match": exact_match,
+        "semantic_similarity": semantic_sim,
+        "composite_score": 0.3 * exact_match + 0.7 * semantic_sim
+    }`,
+                  followUpQuestions: [
+                    'What are the limitations of cosine similarity on Sentence Transformers when evaluating multi-step mathematical reasoning?',
+                    'How do you parallelize embedding computations across multiple GPU batches efficiently?',
+                  ],
+                  userStatus: 'mastered',
+                },
+                {
+                  id: 'int-mlm-3',
+                  question: 'When using LLM-as-a-judge to evaluate free-form text generations, what common cognitive biases occur, and how do you programmatically mitigate them in your evaluation harness?',
+                  difficulty: 'Senior',
+                  category: 'Evaluation & Edge Cases',
+                  answer: 'LLM-as-a-judge systems suffer from four well-documented failure modes: (1) Position Bias: Models consistently favor Option A over Option B regardless of content. Mitigation: Run pairwise evaluations with swapped positions (A/B and B/A) and only accept concordant judgements or average the scores. (2) Verbosity Bias: Models favor longer, articulate responses even when filled with filler text. Mitigation: Normalize scores by length or inject length-penalty directives into the judge prompt. (3) Self-Enhancement Bias: Models (e.g. GPT-4) systematically score their own outputs higher. Mitigation: Use multiple diverse judge models (e.g. Gemini 1.5 Pro + Claude 3.5 Sonnet) or blind judge prompts. (4) Egocentric / Rubric Drift: Mitigate by enforcing strict structured JSON outputs with granular multi-criteria scoring rubrics (e.g., Factuality, Conciseness, Coherence).',
+                  keyCriteria: [
+                    'Identifies position bias, verbosity bias, and self-enhancement bias.',
+                    'Offers concrete algorithmic mitigations: positional swapping, multi-judge ensembles, and length normalization.',
+                    'Understands the importance of structured output schema enforcement in judge LLMs.',
+                  ],
+                  codeSnippet: `def evaluate_pairwise_unbiased(judge_llm, prompt: str, resp_a: str, resp_b: str) -> str:
+    # Pass 1: A first, B second
+    order_1 = judge_llm(prompt=prompt, first=resp_a, second=resp_b)
+    # Pass 2: Position swap to eliminate position bias
+    order_2 = judge_llm(prompt=prompt, first=resp_b, second=resp_a)
+    
+    if order_1 == "A" and order_2 == "B":
+        return "Model A Wins"
+    elif order_1 == "B" and order_2 == "A":
+        return "Model B Wins"
+    return "Tie / Inconclusive (Mitigated Bias)"`,
+                  followUpQuestions: [
+                    'How do you calibrate an LLM judge against human expert annotations to determine agreement rates (Cohen’s Kappa)?',
+                    'What cost trade-offs exist between single-point scoring vs. pairwise ranking?',
+                  ],
+                  userStatus: 'needs_practice',
+                },
+                {
+                  id: 'int-mlm-4',
+                  question: 'How would you scale continuous LLM evaluation in an enterprise CI/CD pipeline running 50,000 evaluations per deployment without incurring budget overruns?',
+                  difficulty: 'Staff/Principal',
+                  category: 'System Design',
+                  answer: 'To scale continuous LLM evaluation in CI/CD without prohibitive cost: (1) Stratified Golden Subsets: Run a fast tier-1 suite of 500 representative edge-case queries on every git commit, reserving the 50,000 test suite for nightly regression builds or release tags. (2) Tiered Metric Cascades: Evaluate fast, deterministic metrics first (Regex, Normalized Exact Match, Token F1). Only invoke expensive LLM judges or embedding models if the sample fails deterministic filters or is tagged high-risk. (3) Response Caching: Use semantic caching (e.g. Redis + vector lookup) for deterministic prompt-model hash pairs. (4) Local Open-Source Models for Intermediate Checks: Use distilled local models (e.g. Llama-3-8B / vLLM) for initial triage and reserve commercial frontier models for final arbitration. (5) Pre-flight Token Quotas & Circuit Breakers: Terminate eval runs if error or drift rate exceeds predetermined thresholds in the first 5% of samples.',
+                  keyCriteria: [
+                    'Proposes tiered evaluation (Tier-1 PR checks vs. Tier-2 nightly suites).',
+                    'Introduces caching and deterministic metric short-circuiting.',
+                    'Mentions pre-flight budgeting, token quotas, and automated circuit breakers.',
+                    'Demonstrates cost-awareness and real-world production engineering pragmatism.',
+                  ],
+                  followUpQuestions: [
+                    'How do you detect subtle behavioral regressions when a vendor updates an API model version (e.g. gpt-4o-2024-08-06 to gpt-4o-2024-11-20)?',
+                    'How do you maintain benchmark freshness so test sets do not become obsolete over time?',
+                  ],
+                  userStatus: 'unreviewed',
+                },
+              ],
+            },
+            modelUsed: 'Gemini 1.5 Pro',
+            tokensConsumed: 2200,
+            createdAt: '2026-10-30T10:06:00Z',
+          },
+          {
+            id: 'art-mlm-flashcards',
+            tenantId: 'tenant-acme',
+            noteId: 'note-custom-llm-eval-harness',
+            userId: 'user-alex',
+            artifactType: 'flashcards',
+            title: 'Custom LLM Eval Harness Flashcards',
+            content: {
+              flashcards: [
+                {
+                  front: 'What are the 4 modular components of a custom LLM evaluation harness?',
+                  back: '1. Dataset Manager\n2. Model Interface (Inference Layer)\n3. Evaluation Metrics Pipeline\n4. Results Logger & Reporting Dashboard',
+                  hint: 'Core system modules from Machine Learning Mastery',
+                },
+                {
+                  front: 'What is the primary danger of using off-the-shelf black-box evaluation frameworks?',
+                  back: 'They hide prompt template alterations, obscure non-deterministic retry policies, and make it difficult to prevent evaluation data leakage into training splits.',
+                  hint: 'Opacity and prompt contamination risks',
+                },
+                {
+                  front: 'How do you programmatically mitigate position bias in LLM-as-a-judge?',
+                  back: 'Run pairwise evaluations twice with candidate positions swapped (A vs B, then B vs A). Only accept concordant outcomes or average pairwise scores.',
+                  hint: 'Positional permutation evaluation',
+                },
+              ],
+            },
+            modelUsed: 'Gemini 1.5 Pro',
+            tokensConsumed: 1200,
+            createdAt: '2026-10-30T10:07:00Z',
+          },
+        ],
+        createdAt: '2026-10-30T10:00:00Z',
+        updatedAt: '2026-10-30T10:07:00Z',
+      },
     ],
   },
   'tenant-globaltech': {

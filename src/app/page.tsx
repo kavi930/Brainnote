@@ -29,7 +29,14 @@ import {
   Clock, 
   CheckCircle2, 
   ExternalLink,
-  Layers
+  Layers,
+  Globe,
+  Briefcase,
+  Code2,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Filter
 } from 'lucide-react';
 
 export default function BrainnoteApp() {
@@ -37,7 +44,7 @@ export default function BrainnoteApp() {
   const [datasets, setDatasets] = useState<Record<string, TenantDataset>>(INITIAL_TENANTS);
   const [activeTenantId, setActiveTenantId] = useState<string>('tenant-acme');
 
-  // Primary Navigation Section: 'home' | 'library' | 'meetings' | 'documents' | 'videos' | 'ai_chat' | 'study_tools' | 'settings'
+  // Primary Navigation Section: 'home' | 'library' | 'web_sources' | 'interview_prep' | 'meetings' | 'documents' | 'videos' | 'ai_chat' | 'study_tools' | 'settings'
   const [currentSection, setCurrentSection] = useState<PrimaryNavSection>('library');
 
   // UI state
@@ -48,10 +55,16 @@ export default function BrainnoteApp() {
   
   // Modals & async operations
   const [isIngestModalOpen, setIsIngestModalOpen] = useState(false);
+  const [ingestInitialTab, setIngestInitialTab] = useState<SourceType>('youtube');
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleOpenIngest = (tab: SourceType = 'youtube') => {
+    setIngestInitialTab(tab);
+    setIsIngestModalOpen(true);
+  };
 
   // Synchronize live notes from server store (captures from Extension & Ingest API)
   React.useEffect(() => {
@@ -135,7 +148,11 @@ export default function BrainnoteApp() {
     let result = currentDataset.notes;
 
     // Filter by primary section if applicable
-    if (currentSection === 'meetings') {
+    if (currentSection === 'web_sources') {
+      result = result.filter((n) => n.sources?.some((s) => s.sourceType === 'web'));
+    } else if (currentSection === 'interview_prep') {
+      result = result.filter((n) => n.aiArtifacts?.some((a) => a.artifactType === 'interview_qa'));
+    } else if (currentSection === 'meetings') {
       result = result.filter((n) => n.sources?.some((s) => s.sourceType === 'audio' || s.sourceType === 'meeting'));
     } else if (currentSection === 'documents') {
       result = result.filter((n) => n.sources?.some((s) => s.sourceType === 'pdf' || s.sourceType === 'document' || s.sourceType === 'presentation'));
@@ -172,6 +189,14 @@ export default function BrainnoteApp() {
   }, [currentDataset.notes, currentSection, activeFilter, searchQuery]);
 
   // Aggregate counts
+  const webCount = useMemo(() => {
+    return currentDataset.notes.filter((n) => n.sources?.some((s) => s.sourceType === 'web')).length;
+  }, [currentDataset.notes]);
+
+  const interviewPrepCount = useMemo(() => {
+    return currentDataset.notes.filter((n) => n.aiArtifacts?.some((a) => a.artifactType === 'interview_qa')).length;
+  }, [currentDataset.notes]);
+
   const meetingsCount = useMemo(() => {
     return currentDataset.notes.filter((n) => n.sources?.some((s) => s.sourceType === 'audio' || s.sourceType === 'meeting')).length;
   }, [currentDataset.notes]);
@@ -324,9 +349,15 @@ export default function BrainnoteApp() {
     }));
 
     setSelectedNoteId(newNote.id);
-    setCurrentSection(
-      sourceType === 'youtube' ? 'videos' : sourceType === 'audio' ? 'meetings' : 'documents'
-    );
+    if (sourceType === 'web') {
+      setCurrentSection('web_sources');
+    } else if (sourceType === 'youtube') {
+      setCurrentSection('videos');
+    } else if (sourceType === 'audio' || sourceType === 'meeting') {
+      setCurrentSection('meetings');
+    } else {
+      setCurrentSection('documents');
+    }
     showToast(`Successfully ingested ${sourceType} source!`);
   };
 
@@ -374,6 +405,7 @@ export default function BrainnoteApp() {
         else if (artifactType === 'summary') setEditorTab('summary');
         else if (artifactType === 'flashcards') setEditorTab('flashcards');
         else if (artifactType === 'quiz') setEditorTab('quiz');
+        else if (artifactType === 'interview_qa') setEditorTab('interview_qa');
 
         setDatasets((prev) => ({
           ...prev,
@@ -543,6 +575,8 @@ export default function BrainnoteApp() {
 
   // Human readable title for note list
   const filterTitle = useMemo(() => {
+    if (currentSection === 'web_sources') return 'Web Articles & Research';
+    if (currentSection === 'interview_prep') return 'Interview Prep (Q&A)';
     if (currentSection === 'meetings') return 'Meetings & Recordings';
     if (currentSection === 'documents') return 'Documents & Presentations';
     if (currentSection === 'videos') return 'YouTube & Video Notes';
@@ -569,26 +603,36 @@ export default function BrainnoteApp() {
         allDatasets={datasets}
         onSelectTenant={handleSelectTenant}
         onOpenNewNote={handleCreateNewNote}
-        onOpenIngest={() => setIsIngestModalOpen(true)}
+        onOpenIngest={handleOpenIngest}
         onOpenBilling={() => setIsBillingModalOpen(true)}
         onOpenShare={() => setIsShareModalOpen(true)}
       />
 
       {/* Main SaaS Workspace */}
       <div style={{ display: 'flex', flex: 1 }}>
-        {/* Left Sidebar with 8 Primary Navigation Sections */}
+        {/* Left Sidebar with 10 Primary Navigation Sections */}
         <Sidebar
           currentSection={currentSection}
-          onSelectSection={setCurrentSection}
+          onSelectSection={(sec) => {
+            setCurrentSection(sec);
+            if (sec === 'interview_prep') {
+              setEditorTab('interview_qa');
+            } else if (sec === 'web_sources') {
+              const webNote = currentDataset.notes.find((n) => n.sources?.some((s) => s.sourceType === 'web'));
+              if (webNote) setSelectedNoteId(webNote.id);
+            }
+          }}
           folders={currentDataset.folders}
           tags={currentDataset.tags}
           usage={currentDataset.usage}
           activeFilter={activeFilter}
           onSelectFilter={setActiveFilter}
           notesCount={currentDataset.notes.length}
+          webCount={webCount}
           meetingsCount={meetingsCount}
           documentsCount={documentsCount}
           videosCount={videosCount}
+          interviewPrepCount={interviewPrepCount}
         />
 
         {/* Section View 1: Home Dashboard */}
@@ -605,9 +649,55 @@ export default function BrainnoteApp() {
               </div>
 
               {/* Quick Actions Card Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '36px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '36px' }}>
                 <div
-                  onClick={() => setIsIngestModalOpen(true)}
+                  onClick={() => handleOpenIngest('web')}
+                  style={{
+                    padding: '24px',
+                    borderRadius: '16px',
+                    background: '#FFFFFF',
+                    border: '1px solid #BAE6FD',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                    <Globe size={20} color="#0284C7" />
+                  </div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
+                    Web &amp; Articles
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: '1.5' }}>
+                    Ingest technical blogs, ML tutorials &amp; articles into deep notes &amp; interview Q&amp;A.
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setCurrentSection('interview_prep')}
+                  style={{
+                    padding: '24px',
+                    borderRadius: '16px',
+                    background: '#FFFFFF',
+                    border: '1px solid #BBF7D0',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                    <Briefcase size={20} color="#059669" />
+                  </div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
+                    Interview Prep
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: '1.5' }}>
+                    Master Staff/Senior interview questions, model answers, code snippets &amp; rubrics.
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => handleOpenIngest('youtube')}
                   style={{
                     padding: '24px',
                     borderRadius: '16px',
@@ -668,7 +758,7 @@ export default function BrainnoteApp() {
                     <GraduationCap size={20} color="#D97706" />
                   </div>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
-                    Study & Quizzes
+                    Study &amp; Quizzes
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: '1.5' }}>
                     Practice active-recall flashcards and multiple-choice quizzes.
@@ -752,29 +842,94 @@ export default function BrainnoteApp() {
           </main>
         )}
 
-        {/* Section View 2: Library / Meetings / Documents / Videos (Split Note List + Editor) */}
-        {(currentSection === 'library' || currentSection === 'meetings' || currentSection === 'documents' || currentSection === 'videos') && (
-          <>
-            <NoteList
-              notes={filteredNotes}
-              selectedNoteId={selectedNoteId}
-              onSelectNote={setSelectedNoteId}
-              onNewNote={handleCreateNewNote}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              filterTitle={filterTitle}
-            />
+        {/* Section View 2: Library / Web Articles / Meetings / Documents / Videos (Split Note List + Editor) */}
+        {(currentSection === 'library' || currentSection === 'web_sources' || currentSection === 'meetings' || currentSection === 'documents' || currentSection === 'videos') && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            {/* Top Web Article Hub Banner */}
+            {currentSection === 'web_sources' && (
+              <div style={{
+                padding: '12px 28px',
+                background: '#F0F9FF',
+                borderBottom: '1px solid #BAE6FD',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Globe size={18} color="#0284C7" />
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0369A1' }}>
+                      Web Sources &amp; Technical Notes Hub
+                    </span>
+                    <span style={{ fontSize: '0.78rem', color: '#0284C7', marginLeft: '8px' }}>
+                      Search web sources, paste URLs (like Machine Learning Mastery), and synthesize deep notes with interview Q&amp;A.
+                    </span>
+                  </div>
+                </div>
 
-            <NoteEditor
-              note={activeNote}
-              onUpdateNote={handleUpdateNote}
-              onGenerateAI={handleGenerateAI}
-              isGeneratingAI={isGeneratingAI}
-              activeTab={editorTab}
-              onTabChange={setEditorTab}
-              onOpenShare={() => setIsShareModalOpen(true)}
-            />
-          </>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      const mlmNote = currentDataset.notes.find((n) =>
+                        n.sources?.some((s) => s.sourceUrl?.includes('machinelearningmastery'))
+                      );
+                      if (mlmNote) {
+                        setSelectedNoteId(mlmNote.id);
+                        setEditorTab('content');
+                      } else {
+                        handleOpenIngest('web');
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.76rem',
+                      padding: '6px 12px',
+                      background: '#FFFFFF',
+                      borderColor: '#BAE6FD',
+                      color: '#0284C7',
+                      fontWeight: 700,
+                    }}
+                  >
+                    🔥 Open ML Mastery LLM Eval Harness
+                  </button>
+                  <button
+                    onClick={() => handleOpenIngest('web')}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.76rem', padding: '6px 14px', background: '#0284C7', borderColor: '#0369A1' }}
+                  >
+                    <Plus size={13} />
+                    <span>+ Ingest Web Article</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              <NoteList
+                notes={filteredNotes}
+                selectedNoteId={selectedNoteId}
+                onSelectNote={setSelectedNoteId}
+                onNewNote={handleCreateNewNote}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterTitle={filterTitle}
+              />
+
+              <NoteEditor
+                note={activeNote}
+                onUpdateNote={handleUpdateNote}
+                onGenerateAI={handleGenerateAI}
+                isGeneratingAI={isGeneratingAI}
+                activeTab={editorTab}
+                onTabChange={setEditorTab}
+                onOpenShare={() => setIsShareModalOpen(true)}
+              />
+            </div>
+          </div>
         )}
 
         {/* Section View 3: Grounded AI Chat */}
@@ -1076,6 +1231,187 @@ export default function BrainnoteApp() {
           </main>
         )}
 
+        {/* Section View: Technical Interview Preparation Studio */}
+        {currentSection === 'interview_prep' && (
+          <main style={{ flex: 1, padding: '36px 48px', overflowY: 'auto', background: '#FAF8F5' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Briefcase size={18} color="#059669" />
+                    </div>
+                    <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                      Technical Interview Preparation Studio
+                    </h2>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+                    Staff &amp; Senior engineering questions, model answers, interviewer criteria, and Python architecture patterns.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    onClick={() => handleOpenIngest('web')}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.82rem', padding: '8px 16px', background: '#059669', borderColor: '#047857' }}
+                  >
+                    <Plus size={14} />
+                    <span>+ Ingest Article for Interview Q&amp;A</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Check if any notes have interview_qa */}
+              {currentDataset.notes.filter((n) => n.aiArtifacts?.some((a) => a.artifactType === 'interview_qa')).length === 0 ? (
+                <div style={{
+                  background: '#FFFFFF',
+                  border: '1px dashed #CBD5E1',
+                  borderRadius: '16px',
+                  padding: '48px 24px',
+                  textAlign: 'center',
+                  color: '#64748B',
+                }}>
+                  <Briefcase size={44} color="#059669" style={{ margin: '0 auto 16px' }} />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                    No Interview Question Decks Yet
+                  </h3>
+                  <p style={{ fontSize: '0.88rem', color: '#64748B', maxWidth: '460px', margin: '0 auto 20px' }}>
+                    Ingest a technical article (like Machine Learning Mastery) or click below to generate staff-level interview questions and model answers.
+                  </p>
+                  <button
+                    onClick={() => handleOpenIngest('web')}
+                    className="btn btn-primary"
+                    style={{ background: '#059669', borderColor: '#047857' }}
+                  >
+                    Ingest Technical Article
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  {currentDataset.notes
+                    .filter((n) => n.aiArtifacts?.some((a) => a.artifactType === 'interview_qa'))
+                    .map((n) => {
+                      const intArtifact = n.aiArtifacts?.find((a) => a.artifactType === 'interview_qa');
+                      const questions = intArtifact?.content?.interviewQA?.questions || (intArtifact?.content as any)?.questions || [];
+                      const primarySource = n.sources?.[0];
+
+                      return (
+                        <div
+                          key={n.id}
+                          style={{
+                            background: '#FFFFFF',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: '16px',
+                            padding: '28px',
+                            boxShadow: 'var(--shadow-sm)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Technical Interview Deck
+                              </span>
+                              {primarySource && (
+                                <span style={{
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800,
+                                  background: '#E0F2FE',
+                                  color: '#0369A1',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}>
+                                  {primarySource.sourceType}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                setSelectedNoteId(n.id);
+                                setEditorTab('interview_qa');
+                                setCurrentSection('library');
+                              }}
+                              className="btn btn-primary"
+                              style={{
+                                fontSize: '0.78rem',
+                                padding: '6px 14px',
+                                background: '#059669',
+                                borderColor: '#047857',
+                              }}
+                            >
+                              Practice in Studio ({questions.length} Q&amp;As) →
+                            </button>
+                          </div>
+
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                            {n.title}
+                          </h3>
+                          {primarySource?.sourceUrl && (
+                            <p style={{ fontSize: '0.78rem', color: '#64748B', marginBottom: '18px' }}>
+                              Source URL: <a href={primarySource.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#0284C7', textDecoration: 'underline' }}>{primarySource.sourceUrl}</a>
+                            </p>
+                          )}
+
+                          {/* Preview Questions List */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                            {questions.slice(0, 4).map((q: any, qIdx: number) => (
+                              <div
+                                key={q.id || qIdx}
+                                onClick={() => {
+                                  setSelectedNoteId(n.id);
+                                  setEditorTab('interview_qa');
+                                  setCurrentSection('library');
+                                }}
+                                style={{
+                                  padding: '14px 18px',
+                                  borderRadius: '10px',
+                                  background: '#F8FAFC',
+                                  border: '1px solid #E2E8F0',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '12px',
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <span style={{
+                                      fontSize: '0.68rem',
+                                      fontWeight: 800,
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      background: q.difficulty === 'Staff/Principal' ? '#FEE2E2' : q.difficulty === 'Senior' ? '#FEF3C7' : '#EDE9FE',
+                                      color: q.difficulty === 'Staff/Principal' ? '#991B1B' : q.difficulty === 'Senior' ? '#92400E' : '#5B21B6',
+                                    }}>
+                                      {q.difficulty || 'Senior'}
+                                    </span>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>
+                                      {q.category || 'Architecture'}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0F172A' }}>
+                                    {q.question}
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                                  Practice &amp; Rubric →
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </main>
+        )}
+
         {/* Section View 5: Settings, Export & Data Privacy */}
         {currentSection === 'settings' && (
           <main style={{ flex: 1, padding: '36px 48px', overflowY: 'auto' }}>
@@ -1155,6 +1491,7 @@ export default function BrainnoteApp() {
         isOpen={isIngestModalOpen}
         onClose={() => setIsIngestModalOpen(false)}
         onIngestComplete={handleIngestComplete}
+        initialTab={ingestInitialTab}
       />
 
       {/* Billing & 7-Day Trial Modal */}
