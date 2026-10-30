@@ -38,3 +38,4 @@ next-env.d.ts
 # OS generated files
 .DS_Store
 Thumbs.db
+push_to_github.bat
