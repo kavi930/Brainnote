@@ -168,8 +168,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     const error = err as Error;
+    console.error('Ingest route error:', error);
     return NextResponse.json(
-      { error: error.message || 'Source ingestion pipeline error' },
+      { error: error.message || 'Source ingestion pipeline error', stack: error.stack },
       { status: 500 }
     );
   }
