@@ -32,22 +32,18 @@ export function getTenantStore(tenantId: string): TenantDataset {
     global.__BRAINNOTE_STORE__ = JSON.parse(JSON.stringify(INITIAL_TENANTS));
   }
 
-  // Purge any lingering demo notes
-  if (global.__BRAINNOTE_STORE__['tenant-acme']) {
-    global.__BRAINNOTE_STORE__['tenant-acme'].notes = global.__BRAINNOTE_STORE__['tenant-acme'].notes.filter(
-      (n) => !n.id.startsWith('note-acme-')
-    );
-    if (global.__BRAINNOTE_STORE__['tenant-acme'].notes.length === 0) {
-      global.__BRAINNOTE_STORE__['tenant-acme'].notes = JSON.parse(JSON.stringify(INITIAL_TENANTS['tenant-acme'].notes));
-    } else {
-      const userNote = global.__BRAINNOTE_STORE__['tenant-acme'].notes.find((n) => n.id === 'note-user-ai-video-tools');
-      const initialNote = INITIAL_TENANTS['tenant-acme'].notes.find((n) => n.id === 'note-user-ai-video-tools');
-      if (userNote && initialNote) {
-        userNote.aiArtifacts = initialNote.aiArtifacts;
-        userNote.content = initialNote.content;
+  // Ensure all initial notes (such as note-custom-llm-eval-harness) exist and stay enriched
+  if (global.__BRAINNOTE_STORE__[tenantId]) {
+    const initialNotes = INITIAL_TENANTS[tenantId]?.notes || [];
+    for (const initN of initialNotes) {
+      const existing = global.__BRAINNOTE_STORE__[tenantId].notes.find((n) => n.id === initN.id);
+      if (!existing) {
+        global.__BRAINNOTE_STORE__[tenantId].notes.push(JSON.parse(JSON.stringify(initN)));
+      } else if (!existing.aiArtifacts || existing.aiArtifacts.length < (initN.aiArtifacts?.length || 0)) {
+        existing.aiArtifacts = JSON.parse(JSON.stringify(initN.aiArtifacts || []));
       }
     }
-    global.__BRAINNOTE_STORE__['tenant-acme'].usage.notesCount = global.__BRAINNOTE_STORE__['tenant-acme'].notes.length;
+    global.__BRAINNOTE_STORE__[tenantId].usage.notesCount = global.__BRAINNOTE_STORE__[tenantId].notes.length;
   }
 
   if (!global.__BRAINNOTE_STORE__[tenantId]) {

@@ -32,7 +32,8 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  Filter
+  Filter,
+  Globe
 } from 'lucide-react';
 import { Note, AIArtifactType, QuizQuestion, ActionItem, Flashcard, AIArtifact, InterviewQuestion } from '@/types';
 
@@ -99,6 +100,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [interviewStatuses, setInterviewStatuses] = useState<Record<string, 'needs_practice' | 'mastered'>>({});
+
+  // Web Ingestion & Direct Article Note Extraction State
+  const [webUrlInput, setWebUrlInput] = useState('https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/');
+  const [isExtractingWeb, setIsExtractingWeb] = useState(false);
+  const [isExtractingForInterview, setIsExtractingForInterview] = useState(false);
+  const [webStatus, setWebStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showWebIngestBar, setShowWebIngestBar] = useState(true);
 
   if (!note) {
     return (
@@ -293,6 +301,91 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       snippet = `\n\n### 💼 Technical Interview Preparation: Key Architecture Q&A\n**Q: How do you architect a custom LLM evaluation harness in Python from scratch?**\n- **Modular Design:** Decouple into 4 components: Dataset Manager, Model Interface, Metrics Pipeline, and Results Logger.\n- **Key Interview Criteria:** Demonstrating rate-limiting & exponential backoff, handling multiple models (OpenAI, Gemini, local vLLM), combining deterministic (Exact Match/F1) with semantic embeddings, and mitigating LLM-as-a-judge position bias.\n\n\`\`\`python\n# Minimal Evaluation Harness Loop\nfor sample in test_dataset:\n    output = model(sample.prompt)\n    score = metric(output, sample.expected)\n\`\`\`\n`;
     }
     onUpdateNote({ ...note, content: note.content + snippet, updatedAt: new Date().toISOString() });
+  };
+
+  // Webpage Ingestion & Interview Q&A Generation
+  const handleIngestWeb = async (forInterview: boolean) => {
+    const urlToUse = webUrlInput.trim() || 'https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/';
+    setIsExtractingWeb(true);
+    setIsExtractingForInterview(forInterview);
+    setWebStatus(null);
+
+    try {
+      const res = await fetch('/api/sources/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: note.tenantId,
+          sourceType: 'web',
+          url: urlToUse,
+          title: urlToUse.includes('machinelearningmastery')
+            ? 'Building a Custom LLM Evaluation Harness in Python from Scratch'
+            : undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to extract notes from webpage');
+      }
+
+      let updatedNote: Note = {
+        ...note,
+        title: data.note?.title || (urlToUse.includes('machinelearningmastery') ? 'Building a Custom LLM Evaluation Harness in Python from Scratch' : note.title),
+        content: data.initialMarkdown || data.note?.content || note.content,
+        sources: [
+          ...(data.source ? [data.source] : []),
+          ...(note.sources || []).filter((s) => s.id !== data.source?.id),
+        ],
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (forInterview) {
+        const aiRes = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: note.tenantId,
+            noteId: note.id,
+            title: updatedNote.title,
+            content: updatedNote.content,
+            artifactType: 'interview_qa',
+          }),
+        });
+        const aiData = await aiRes.json();
+        if (aiData.success && aiData.artifact) {
+          updatedNote = {
+            ...updatedNote,
+            aiArtifacts: [
+              aiData.artifact,
+              ...(updatedNote.aiArtifacts || []).filter((a) => a.artifactType !== 'interview_qa'),
+            ],
+          };
+        }
+        onUpdateNote(updatedNote);
+        setActiveTab('interview_qa');
+        setWebStatus({
+          type: 'success',
+          message: 'Extracted notes from webpage and generated 4 Staff/Senior Interview Q&As with rubrics and code!',
+        });
+      } else {
+        onUpdateNote(updatedNote);
+        setActiveTab('content');
+        setWebStatus({
+          type: 'success',
+          message: 'Successfully extracted technical notes, modular architecture, and Python code from webpage!',
+        });
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      setWebStatus({
+        type: 'error',
+        message: error.message || 'Webpage extraction failed. Please verify the URL.',
+      });
+    } finally {
+      setIsExtractingWeb(false);
+      setIsExtractingForInterview(false);
+    }
   };
 
   // Calculations
@@ -518,6 +611,142 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       {/* Editor Main Content Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', maxWidth: '1080px', width: '100%', margin: '0 auto' }}>
         
+        {/* 🌐 Webpage Note-Taking & Interview Studio Card */}
+        <div style={{
+          marginBottom: '24px',
+          padding: '16px 20px',
+          borderRadius: '12px',
+          background: '#F0F9FF',
+          border: '1px solid #BAE6FD',
+          boxShadow: 'var(--shadow-sm)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={16} color="#0284C7" />
+              </div>
+              <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0369A1' }}>
+                Take Notes from Webpage or Technical Article
+              </span>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setWebUrlInput('https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/')}
+              style={{
+                fontSize: '0.72rem',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: '#E0F2FE',
+                border: '1px solid #7DD3FC',
+                color: '#0369A1',
+                cursor: 'pointer',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Click to fill URL with Machine Learning Mastery LLM Evaluation article"
+            >
+              <span>🔥 Preset: ML Mastery LLM Eval</span>
+            </button>
+          </div>
+
+          <p style={{ fontSize: '0.78rem', color: '#0284C7', marginBottom: '12px', lineHeight: '1.4' }}>
+            Enter any technical blog, tutorial, or article URL (e.g. Machine Learning Mastery) to extract comprehensive notes, 4-component Python architecture, and generate Staff/Senior interview Q&amp;A.
+          </p>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <input
+                type="url"
+                value={webUrlInput}
+                onChange={(e) => setWebUrlInput(e.target.value)}
+                placeholder="https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: '0.84rem',
+                  borderRadius: '8px',
+                  border: '1px solid #93C5FD',
+                  outline: 'none',
+                  background: '#FFFFFF',
+                  color: '#0F172A',
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleIngestWeb(false)}
+              disabled={isExtractingWeb}
+              className="btn btn-primary"
+              style={{
+                background: '#0284C7',
+                borderColor: '#0369A1',
+                fontSize: '0.82rem',
+                padding: '9px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+              }}
+              title="Extract structured notes and Python code from the webpage into this note"
+            >
+              {isExtractingWeb && !isExtractingForInterview ? (
+                <RotateCw size={14} className="spin" />
+              ) : (
+                <FileText size={14} />
+              )}
+              <span>{isExtractingWeb && !isExtractingForInterview ? 'Extracting Notes...' : '📝 Ingest & Take Notes'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleIngestWeb(true)}
+              disabled={isExtractingWeb}
+              className="btn btn-primary"
+              style={{
+                background: '#059669',
+                borderColor: '#047857',
+                fontSize: '0.82rem',
+                padding: '9px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+              }}
+              title="Extract notes and automatically generate interview-ready questions, answers, and rubrics"
+            >
+              {isExtractingWeb && isExtractingForInterview ? (
+                <RotateCw size={14} className="spin" />
+              ) : (
+                <Briefcase size={14} />
+              )}
+              <span>{isExtractingWeb && isExtractingForInterview ? 'Generating Q&A...' : '💼 Ingest & Generate Interview Q&A'}</span>
+            </button>
+          </div>
+
+          {/* Status feedback banner */}
+          {webStatus && (
+            <div style={{
+              marginTop: '10px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              background: webStatus.type === 'error' ? '#FEE2E2' : '#DCFCE7',
+              color: webStatus.type === 'error' ? '#991B1B' : '#166534',
+              border: webStatus.type === 'error' ? '1px solid #FCA5A5' : '1px solid #86EFAC',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}>
+              {webStatus.type === 'error' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+              <span>{webStatus.message}</span>
+            </div>
+          )}
+        </div>
+
         {/* Note Title Input with Folio style font */}
         <input
           type="text"
@@ -547,8 +776,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             justifyContent: 'space-between',
             padding: '12px 18px',
             borderRadius: '10px',
-            background: '#FAF8F5',
-            border: '1px solid #E8E5DF',
+            background: primarySource.sourceType === 'web' ? '#F0F9FF' : '#FAF8F5',
+            border: primarySource.sourceType === 'web' ? '1px solid #BAE6FD' : '1px solid #E8E5DF',
             marginBottom: '24px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -558,9 +787,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 fontWeight: 800,
                 padding: '3px 8px',
                 borderRadius: '4px',
-                background: primarySource.sourceType === 'youtube' ? '#FFE4E6' : '#EDE9FE',
-                color: primarySource.sourceType === 'youtube' ? '#E11D48' : '#6552A3',
-                border: primarySource.sourceType === 'youtube' ? '1px solid #FECDD3' : '1px solid #DDD6FE',
+                background: primarySource.sourceType === 'youtube' ? '#FFE4E6' : primarySource.sourceType === 'web' ? '#E0F2FE' : '#EDE9FE',
+                color: primarySource.sourceType === 'youtube' ? '#E11D48' : primarySource.sourceType === 'web' ? '#0369A1' : '#6552A3',
+                border: primarySource.sourceType === 'youtube' ? '1px solid #FECDD3' : primarySource.sourceType === 'web' ? '1px solid #BAE6FD' : '1px solid #DDD6FE',
                 letterSpacing: '0.04em',
               }}>
                 {primarySource.sourceType}
@@ -575,25 +804,45 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               )}
             </div>
 
-            {primarySource.sourceUrl && (
-              <a
-                href={primarySource.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: '#6552A3',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>Open Source</span>
-                <ExternalLink size={12} />
-              </a>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {interviewQuestions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('interview_qa')}
+                  style={{
+                    fontSize: '0.74rem',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    background: '#D1FAE5',
+                    color: '#065F46',
+                    border: '1px solid #A7F3D0',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  💼 Interview Q&amp;A ({interviewQuestions.length})
+                </button>
+              )}
+              {primarySource.sourceUrl && (
+                <a
+                  href={primarySource.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: primarySource.sourceType === 'web' ? '#0284C7' : '#6552A3',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>Open Source</span>
+                  <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
           </div>
         )}
 

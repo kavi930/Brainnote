@@ -9,6 +9,7 @@ interface NoteListProps {
   selectedNoteId: string | null;
   onSelectNote: (noteId: string) => void;
   onNewNote: () => void;
+  onOpenIngestWeb?: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   filterTitle: string;
@@ -19,6 +20,7 @@ export const NoteList: React.FC<NoteListProps> = ({
   selectedNoteId,
   onSelectNote,
   onNewNote,
+  onOpenIngestWeb,
   searchQuery,
   onSearchChange,
   filterTitle,
@@ -98,6 +100,49 @@ export const NoteList: React.FC<NoteListProps> = ({
               width: '100%',
             }}
           />
+        </div>
+
+        {/* Quick Actions Bar */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          <button
+            onClick={onNewNote}
+            className="btn btn-secondary"
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}
+          >
+            <Plus size={13} />
+            <span>New Note</span>
+          </button>
+          {onOpenIngestWeb && (
+            <button
+              onClick={onOpenIngestWeb}
+              className="btn btn-secondary"
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                background: '#F0F9FF',
+                borderColor: '#BAE6FD',
+                color: '#0284C7',
+                fontWeight: 700,
+              }}
+              title="Ingest webpage or article URL (e.g. Machine Learning Mastery)"
+            >
+              <Globe size={13} color="#0284C7" />
+              <span>🌐 Webpage</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -179,21 +224,39 @@ export const NoteList: React.FC<NoteListProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem' }}>
                   <span style={{ color: '#64748B', fontWeight: 500 }}>{formatDate(note.updatedAt)}</span>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {primarySource && (
                       <span style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        background: '#F1F5F9',
+                        background: primarySource.sourceType === 'web' ? '#EFF6FF' : '#F1F5F9',
                         padding: '3px 8px',
                         borderRadius: '6px',
-                        color: '#334155',
+                        color: primarySource.sourceType === 'web' ? '#0284C7' : '#334155',
                         fontWeight: 600,
-                        border: '1px solid #E2E8F0',
+                        border: primarySource.sourceType === 'web' ? '1px solid #BAE6FD' : '1px solid #E2E8F0',
                       }}>
                         {getSourceIcon(primarySource.sourceType)}
-                        <span style={{ textTransform: 'capitalize' }}>{primarySource.sourceType}</span>
+                        <span style={{ textTransform: 'capitalize' }}>
+                          {primarySource.sourceType === 'web' ? 'Web Article' : primarySource.sourceType}
+                        </span>
+                      </span>
+                    )}
+
+                    {note.aiArtifacts?.some((a) => a.artifactType === 'interview_qa') && (
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        background: '#D1FAE5',
+                        color: '#065F46',
+                        padding: '3px 7px',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        border: '1px solid #A7F3D0',
+                      }}>
+                        <span>💼 Q&amp;A</span>
                       </span>
                     )}
 

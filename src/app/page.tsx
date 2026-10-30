@@ -845,11 +845,11 @@ export default function BrainnoteApp() {
         {/* Section View 2: Library / Web Articles / Meetings / Documents / Videos (Split Note List + Editor) */}
         {(currentSection === 'library' || currentSection === 'web_sources' || currentSection === 'meetings' || currentSection === 'documents' || currentSection === 'videos') && (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            {/* Top Web Article Hub Banner */}
-            {currentSection === 'web_sources' && (
+            {/* Top Web Article Hub Banner (Visible on Library and Web Sources) */}
+            {(currentSection === 'web_sources' || currentSection === 'library') && (
               <div style={{
-                padding: '12px 28px',
-                background: '#F0F9FF',
+                padding: '10px 24px',
+                background: currentSection === 'web_sources' ? '#F0F9FF' : '#FAF8F5',
                 borderBottom: '1px solid #BAE6FD',
                 display: 'flex',
                 alignItems: 'center',
@@ -871,7 +871,7 @@ export default function BrainnoteApp() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => {
                       const mlmNote = currentDataset.notes.find((n) =>
@@ -893,15 +893,42 @@ export default function BrainnoteApp() {
                       color: '#0284C7',
                       fontWeight: 700,
                     }}
+                    title="Open notes on Building a Custom LLM Evaluation Harness in Python from Scratch"
                   >
                     🔥 Open ML Mastery LLM Eval Harness
+                  </button>
+                  <button
+                    onClick={() => {
+                      const mlmNote = currentDataset.notes.find((n) =>
+                        n.sources?.some((s) => s.sourceUrl?.includes('machinelearningmastery'))
+                      );
+                      if (mlmNote) {
+                        setSelectedNoteId(mlmNote.id);
+                        setEditorTab('interview_qa');
+                      } else {
+                        handleOpenIngest('web');
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.76rem',
+                      padding: '6px 12px',
+                      background: '#D1FAE5',
+                      borderColor: '#A7F3D0',
+                      color: '#065F46',
+                      fontWeight: 700,
+                    }}
+                    title="View Staff/Senior Interview Questions, Model Answers & Rubrics"
+                  >
+                    💼 View Interview Q&amp;A (4 Questions)
                   </button>
                   <button
                     onClick={() => handleOpenIngest('web')}
                     className="btn btn-primary"
                     style={{ fontSize: '0.76rem', padding: '6px 14px', background: '#0284C7', borderColor: '#0369A1' }}
+                    title="Ingest any webpage URL into notes and interview Q&A"
                   >
-                    <Plus size={13} />
+                    <Globe size={13} />
                     <span>+ Ingest Web Article</span>
                   </button>
                 </div>
@@ -914,6 +941,7 @@ export default function BrainnoteApp() {
                 selectedNoteId={selectedNoteId}
                 onSelectNote={setSelectedNoteId}
                 onNewNote={handleCreateNewNote}
+                onOpenIngestWeb={() => handleOpenIngest('web')}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 filterTitle={filterTitle}

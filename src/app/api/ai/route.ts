@@ -29,9 +29,11 @@ export async function POST(req: NextRequest) {
       question 
     } = body;
 
-    if (!noteId || !title || !artifactType || !tenantId) {
+    const effectiveTitle = title || 'Technical Knowledge Note';
+
+    if (!noteId || !artifactType || !tenantId) {
       return NextResponse.json(
-        { error: 'Missing required fields: noteId, title, artifactType, and tenantId are mandatory.' },
+        { error: 'Missing required fields: noteId, artifactType, and tenantId are mandatory.' },
         { status: 400 }
       );
     }
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     switch (artifactType as AIArtifactType) {
       case 'summary': {
-        const res = await generateSummary(title, content || '', sourceTranscript);
+        const res = await generateSummary(effectiveTitle, content || '', sourceTranscript);
         artifactTitle = 'Executive Summary';
         artifactContent = res.result as unknown as Record<string, unknown>;
         tokensUsed = res.tokensUsed;
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'meeting_minutes': {
-        const res = await generateMeetingMinutes(title, content || '');
+        const res = await generateMeetingMinutes(effectiveTitle, content || '');
         artifactTitle = 'Meeting Minutes & Decisions';
         artifactContent = res.result as unknown as Record<string, unknown>;
         tokensUsed = res.tokensUsed;
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'action_items': {
-        const res = await generateActionItems(title, content || '');
+        const res = await generateActionItems(effectiveTitle, content || '');
         artifactTitle = 'Action Items Checklist';
         artifactContent = {
           actionItems: res.result.actionItems,
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'flashcards': {
-        const res = await generateFlashcards(title, content || '');
+        const res = await generateFlashcards(effectiveTitle, content || '');
         artifactTitle = 'Study Flashcards';
         artifactContent = {
           flashcards: res.result.flashcards,
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'quiz': {
-        const res = await generateQuiz(title, content || '');
+        const res = await generateQuiz(effectiveTitle, content || '');
         artifactTitle = 'Interactive Study Quiz';
         artifactContent = {
           questions: res.result.questions,
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest) {
         if (!question) {
           return NextResponse.json({ error: 'Question is required for Q&A artifact.' }, { status: 400 });
         }
-        const res = await answerQuestionGrounded(question, title, content || '', sourceTranscript);
+        const res = await answerQuestionGrounded(question, effectiveTitle, content || '', sourceTranscript);
         artifactTitle = `Q&A: ${question.slice(0, 30)}...`;
         artifactContent = res.result as unknown as Record<string, unknown>;
         tokensUsed = res.tokensUsed;
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'interview_qa': {
-        const res = await generateInterviewQA(title, content || '', sourceTranscript);
+        const res = await generateInterviewQA(effectiveTitle, content || '', sourceTranscript);
         artifactTitle = 'Interview Ready Questions & Answers';
         artifactContent = {
           questions: res.result.questions,
