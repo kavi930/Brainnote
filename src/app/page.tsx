@@ -8,6 +8,7 @@ import { NoteEditor, NoteEditorTab } from '@/components/NoteEditor';
 import { IngestSourceModal } from '@/components/IngestSourceModal';
 import { BillingModal } from '@/components/BillingModal';
 import { ShareModal } from '@/components/ShareModal';
+import { ExtensionModal } from '@/components/ExtensionModal';
 import { INITIAL_TENANTS, TenantDataset } from '@/lib/mock-data';
 import { Note, SourceType, AIArtifactType, SubscriptionTier, PrimaryNavSection, CitationAnchor } from '@/types';
 import { checkAITokenQuota, PLAN_CONFIGS } from '@/lib/billing';
@@ -58,6 +59,7 @@ export default function BrainnoteApp() {
   const [ingestInitialTab, setIngestInitialTab] = useState<SourceType>('youtube');
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -606,6 +608,7 @@ export default function BrainnoteApp() {
         onOpenIngest={handleOpenIngest}
         onOpenBilling={() => setIsBillingModalOpen(true)}
         onOpenShare={() => setIsShareModalOpen(true)}
+        onOpenExtension={() => setIsExtensionModalOpen(true)}
       />
 
       {/* Main SaaS Workspace */}
@@ -1539,6 +1542,12 @@ export default function BrainnoteApp() {
         tenantName={currentDataset.tenant.name}
         activeNote={activeNote}
         onShowToast={showToast}
+      />
+
+      {/* Browser Extension Installation Guide Modal */}
+      <ExtensionModal
+        isOpen={isExtensionModalOpen}
+        onClose={() => setIsExtensionModalOpen(false)}
       />
 
       {/* Toast Notification */}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Brainnote AI Side Panel</title>
+  <title>Brainnote AI — Knowledge Companion & Side Panel</title>
   <link rel="stylesheet" href="sidepanel.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="panel-container">
-    <!-- Header -->
+    <!-- Header with Workspace Selector & Backend Status -->
     <header class="panel-header">
       <div class="brand">
         <div class="brand-icon" style="padding: 0; background: transparent; border: none;">
@@ -27,18 +27,31 @@
         </div>
         <div>
           <div class="brand-title">Brainnote AI</div>
-          <div class="brand-sub">Knowledge Companion</div>
+          <div class="workspace-select-wrap">
+            <select id="tenant-select" class="tenant-dropdown" title="Select Active Workspace">
+              <option value="tenant-acme">Acme Corp (Alex)</option>
+              <option value="tenant-scaleup">ScaleUp SaaS (Jordan)</option>
+              <option value="tenant-solopreneur">Solopreneur (Dev)</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="status-badge" id="backend-status">
-        <span class="status-dot"></span>
-        <span id="status-label">Localhost :3000</span>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div class="status-badge" id="backend-status" title="Click to configure backend URL">
+          <span class="status-dot"></span>
+          <span id="status-label">:3000</span>
+        </div>
+        <a id="btn-open-web" href="http://localhost:3000" target="_blank" class="icon-btn" title="Open Brainnote Web App">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
       </div>
     </header>
 
     <!-- Navigation Tabs -->
     <nav class="panel-nav">
-      <button class="nav-tab active" data-tab="capture">Capture</button>
+      <button class="nav-tab active" data-tab="capture">Capture &amp; Notes</button>
+      <button class="nav-tab" data-tab="interview">💼 Interview Prep</button>
       <button class="nav-tab" data-tab="ai">AI Insights</button>
       <button class="nav-tab" data-tab="qa">Grounded Q&amp;A</button>
       <button class="nav-tab" data-tab="library">Library</button>
@@ -49,7 +62,13 @@
       <!-- Tab 1: Capture Active Page / Video -->
       <section id="tab-capture" class="tab-pane active">
         <div class="card current-page-card">
-          <div class="card-label" id="page-source-type">DETECTED SOURCE</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div class="card-label" id="page-source-type">DETECTED SOURCE</div>
+            <button id="btn-preset-mlm" class="btn-chip" title="Fill with ML Mastery LLM Evaluation article for instant testing">
+              🔥 ML Mastery Preset
+            </button>
+          </div>
+
           <h2 class="page-title" id="current-title">Detecting active page...</h2>
           <div class="page-url" id="current-url">https://...</div>
 
@@ -57,11 +76,17 @@
             <span>YouTube Video Detected</span>
           </div>
 
-          <div class="action-stack">
-            <button id="btn-quick-capture" class="btn btn-primary">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-              <span>Save to Brainnote Library</span>
+          <div class="action-stack" style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+            <button id="btn-quick-capture" class="btn btn-primary" style="background: #0284C7; border-color: #0369A1;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>📝 Extract &amp; Take Notes</span>
             </button>
+
+            <button id="btn-quick-interview" class="btn btn-primary" style="background: #059669; border-color: #047857;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              <span>💼 Ingest &amp; Generate Interview Q&amp;A</span>
+            </button>
+
             <button id="btn-import-transcript" class="btn btn-secondary hidden">
               <span>Import Timestamped Transcript</span>
             </button>
@@ -70,15 +95,57 @@
 
         <!-- Selected text capture box -->
         <div class="card selection-card">
-          <div class="card-label">SELECTED TEXT CAPTURE</div>
-          <textarea id="selection-text" placeholder="Select text on any webpage or paste notes here..." rows="4"></textarea>
-          <button id="btn-save-selection" class="btn btn-secondary btn-sm">
-            <span>Save Selection as Note</span>
-          </button>
+          <div class="card-label">QUICK CLIP / HIGHLIGHTS</div>
+          <textarea id="selection-text" placeholder="Select text on any webpage or type notes here..." rows="3"></textarea>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button id="btn-save-selection" class="btn btn-secondary btn-sm" style="flex: 1;">
+              <span>Save Selection as Note</span>
+            </button>
+            <button id="btn-interview-selection" class="btn btn-secondary btn-sm" style="flex: 1; color: #065F46; border-color: #A7F3D0; background: #D1FAE5;">
+              <span>💼 Q&amp;A from Selection</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Ingest Status Output -->
+        <div id="capture-status-box" class="card hidden" style="border: 1px solid #BAE6FD; background: #F0F9FF;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span style="font-weight: 800; color: #0369A1; font-size: 12px;">RECENTLY CAPTURED NOTE</span>
+            <a id="link-open-note-web" href="#" target="_blank" style="font-size: 11px; color: #0284C7; font-weight: 700; text-decoration: underline;">
+              Open in Web Studio →
+            </a>
+          </div>
+          <div id="captured-note-title" style="font-weight: 700; color: #0F172A; margin-bottom: 4px;"></div>
+          <div id="captured-note-preview" style="font-size: 12px; color: #475569; max-height: 120px; overflow-y: auto; white-space: pre-wrap;"></div>
         </div>
       </section>
 
-      <!-- Tab 2: AI Insights (Summary, Action Items, Quiz) -->
+      <!-- Tab 2: Technical Interview Preparation Studio -->
+      <section id="tab-interview" class="tab-pane">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 14px; font-weight: 800; color: #0F172A;">Technical Interview Q&amp;A</h3>
+            <p style="font-size: 11px; color: #64748B;">Staff/Senior architecture questions &amp; rubrics</p>
+          </div>
+          <button id="btn-refresh-interview" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px;">
+            <span>🔄 Re-Generate</span>
+          </button>
+        </div>
+
+        <div id="interview-loading" class="hidden" style="text-align: center; padding: 30px 10px; color: #64748B;">
+          <div style="margin-bottom: 8px;">⏳ Analyzing webpage and generating technical interview questions...</div>
+          <div style="font-size: 11px; color: #94A3B8;">Formulating model answers, scoring rubrics, and code patterns</div>
+        </div>
+
+        <div id="interview-questions-container" class="interview-list">
+          <!-- Dynamically populated interview cards -->
+          <div class="placeholder-text" id="interview-placeholder">
+            Click <strong>"💼 Ingest &amp; Generate Interview Q&amp;A"</strong> or <strong>"Re-Generate"</strong> to create Staff/Senior technical interview questions from this webpage.
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: AI Insights (Summary, Action Items, Flashcards, Quiz) -->
       <section id="tab-ai" class="tab-pane">
         <div class="button-row">
           <button id="btn-ai-summary" class="btn btn-pill">Summary</button>
@@ -95,7 +162,7 @@
         </div>
       </section>
 
-      <!-- Tab 3: Grounded Q&A -->
+      <!-- Tab 4: Grounded Q&A -->
       <section id="tab-qa" class="tab-pane">
         <div class="qa-chat-box" id="qa-messages">
           <div class="chat-msg ai-msg">
@@ -107,14 +174,14 @@
         </div>
 
         <form id="qa-form" class="qa-input-form">
-          <input type="text" id="qa-input" placeholder="Ask a question..." required>
+          <input type="text" id="qa-input" placeholder="Ask a question about this page..." required>
           <button type="submit" class="btn btn-primary btn-icon">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
           </button>
         </form>
       </section>
 
-      <!-- Tab 4: Search Library -->
+      <!-- Tab 5: Search Library -->
       <section id="tab-library" class="tab-pane">
         <div class="search-input-wrapper">
           <input type="text" id="lib-search-input" placeholder="Search saved notes, transcripts...">

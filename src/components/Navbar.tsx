@@ -12,7 +12,8 @@ import {
   BarChart2,
   ShieldCheck,
   Share2,
-  Globe
+  Globe,
+  Puzzle
 } from 'lucide-react';
 import { TenantDataset } from '@/lib/mock-data';
 import { getTrialStatus } from '@/lib/billing';
@@ -27,6 +28,7 @@ interface NavbarProps {
   onOpenIngest: (initialTab?: SourceType) => void;
   onOpenBilling: () => void;
   onOpenShare?: () => void;
+  onOpenExtension?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenIngest,
   onOpenBilling,
   onOpenShare,
+  onOpenExtension,
 }) => {
   const { tenant, user, subscription, usage } = currentDataset;
   const trial = getTrialStatus(subscription);
@@ -179,6 +182,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Globe size={14} color="#0284C7" />
           <span>Web &amp; Notes</span>
         </button>
+
+        {/* Chrome/Edge Extension Side Panel Helper Button */}
+        {onOpenExtension && (
+          <button
+            onClick={onOpenExtension}
+            className="btn btn-secondary"
+            style={{
+              fontSize: '0.82rem',
+              padding: '8px 13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#FAF5FF',
+              border: '1px solid #DDD6FE',
+              color: '#6D28D9',
+              fontWeight: 700,
+            }}
+            title="Install or Open Chrome / Edge Extension Side Panel"
+          >
+            <Puzzle size={14} color="#7C3AED" />
+            <span>Extension</span>
+          </button>
+        )}
 
         {/* Ingest Source Button */}
         <button

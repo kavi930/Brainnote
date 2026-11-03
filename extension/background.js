@@ -23,6 +23,12 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Summarize page with Brainnote AI',
     contexts: ['page'],
   });
+
+  chrome.contextMenus.create({
+    id: 'brainnote-interview-prep',
+    title: '💼 Generate Technical Interview Q&A with Brainnote AI',
+    contexts: ['page', 'selection'],
+  });
 });
 
 // Explicit action click handler to open side panel
@@ -67,6 +73,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         type: 'page_summary',
         pageUrl: tab.url,
         pageTitle: tab.title,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    if (chrome.sidePanel && chrome.sidePanel.open) {
+      chrome.sidePanel.open({ tabId: tab.id });
+    }
+  } else if (info.menuItemId === 'brainnote-interview-prep') {
+    await chrome.storage.local.set({
+      pendingCapture: {
+        type: 'interview_qa',
+        pageUrl: tab.url,
+        pageTitle: tab.title,
+        selectedText: info.selectionText || '',
         timestamp: new Date().toISOString(),
       },
     });

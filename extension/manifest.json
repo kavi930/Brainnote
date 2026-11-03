@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Brainnote AI — Knowledge Companion & Side Panel",
-  "version": "1.0.0",
-  "description": "Capture YouTube transcripts, web articles, and meetings directly into your Brainnote library with instant AI summaries, quizzes, and grounded Q&A.",
+  "version": "1.1.0",
+  "description": "Capture web articles, technical blogs, and YouTube videos directly into Brainnote. Extract clean notes and generate Staff/Senior interview Q&A in the side panel.",
   "permissions": [
     "sidePanel",
     "activeTab",
@@ -11,9 +11,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "https://*.brainnote.ai/*",
-    "https://www.youtube.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
