@@ -1,15 +1,7 @@
-import { Tenant, User, Subscription, UsageRecord, Note, Folder, Tag, Collaborator } from '@/types';
+import { Tenant, User, Subscription, UsageRecord, Note, Folder, Tag, Collaborator, TenantDataset } from '@/types';
 
-export interface TenantDataset {
-  tenant: Tenant;
-  user: User;
-  subscription: Subscription;
-  usage: UsageRecord;
-  folders: Folder[];
-  tags: Tag[];
-  notes: Note[];
-  collaborators?: Collaborator[];
-}
+export type { TenantDataset };
+
 
 export const INITIAL_TENANTS: Record<string, TenantDataset> = {
   'tenant-acme': {

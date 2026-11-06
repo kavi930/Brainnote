@@ -20,6 +20,21 @@ export interface IngestionRequest {
   meetingPlatform?: 'zoom' | 'google_meet' | 'microsoft_teams' | 'custom_recording';
 }
 
+export interface TextChunk {
+  id: string;
+  sourceId: string;
+  sourceTitle: string;
+  sourceType: SourceType;
+  chunkIndex: number;
+  text: string;
+  pageNumber?: number;
+  slideNumber?: number;
+  timestampSeconds?: number;
+  charStart: number;
+  charEnd: number;
+  tokenCountEstimate: number;
+}
+
 export interface IngestionResult {
   success: boolean;
   sourceId: string;
@@ -30,8 +45,10 @@ export interface IngestionResult {
   processingStatus: SourceProcessingStatus;
   jobId?: string; // For async background processing of large files
   isAsync: boolean;
+  isDuplicate?: boolean;
   extractedText: string;
   structuredMarkdown: string;
+  chunks?: TextChunk[];
   durationSeconds?: number;
   fileSizeBytes?: number;
   pageCount?: number;

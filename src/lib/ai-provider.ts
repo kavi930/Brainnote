@@ -576,45 +576,74 @@ export async function answerQuestionGrounded(
 }
 
 /**
- * Cross-source grounded RAG search across all saved sources and notes.
+ * Cross-source grounded RAG search across saved sources and notes.
+ * Strictly respects selectedSourceIds: if provided, retrieval is restricted ONLY
+ * to sources that have been checked by the user. Deselected sources are never included.
+ * Employs hybrid BM25 full-text + vector similarity retrieval.
  */
 export async function searchAndAnswerGrounded(
   query: string,
-  notes: Note[]
+  notes: Note[],
+  selectedSourceIds?: string[],
+  persona?: string,
+  customInstructions?: string
 ): Promise<GroundedQueryResult> {
-  const lowerQuery = query.toLowerCase();
-  const matchedNotes = notes.filter(
-    (n) =>
-      n.title.toLowerCase().includes(lowerQuery) ||
-      n.content.toLowerCase().includes(lowerQuery) ||
-      n.sources?.some((s) => s.title.toLowerCase().includes(lowerQuery) || s.rawTranscript?.toLowerCase().includes(lowerQuery))
-  );
+  const { retrieveGroundedContext } = await import('./search/retrieval');
 
-  const targetNotes = matchedNotes.length > 0 ? matchedNotes : notes.slice(0, 2);
+  // If selectedSourceIds is provided and explicitly empty, return immediately
+  if (selectedSourceIds && selectedSourceIds.length === 0) {
+    return {
+      answer: 'No sources are currently selected for grounding. Please check at least one source in the left panel to receive evidence-backed answers.',
+      citations: [],
+      confidence: 0,
+    };
+  }
 
-  const citations: CitationAnchor[] = [];
+  const retrieval = retrieveGroundedContext(query, notes, selectedSourceIds, { topK: 4 });
 
-  targetNotes.forEach((n) => {
-    const src = n.sources?.[0];
-    if (src) {
-      citations.push({
-        sourceId: src.id,
-        sourceTitle: src.title,
-        sourceType: src.sourceType,
-        timestampSeconds: src.sourceType === 'youtube' ? 420 : undefined,
-        pageNumber: src.sourceType === 'pdf' ? 4 : undefined,
-        citationText: n.content.slice(0, 100),
-        formattedReference:
-          src.sourceType === 'youtube'
-            ? `[${src.title.slice(0, 20)}... @ 07:00]`
-            : `[${src.title.slice(0, 20)}... p. 4]`,
-      });
-    }
-  });
+  if (retrieval.totalCandidateChunks === 0) {
+    return {
+      answer: 'No relevant information found in the selected sources. Please upload or select sources containing information about your query.',
+      citations: [],
+      confidence: 0.1,
+    };
+  }
+
+  const matchedChunks = retrieval.matchedChunks;
+  const citations: CitationAnchor[] = matchedChunks.map((m) => m.citation);
+
+  let personaPrefix = '';
+  if (persona === 'teacher') {
+    personaPrefix = 'Here is a step-by-step educational breakdown: ';
+  } else if (persona === 'technical') {
+    personaPrefix = 'Technical Architecture Analysis: ';
+  } else if (persona === 'executive') {
+    personaPrefix = 'Executive Summary & Key Takeaways: ';
+  } else if (persona === 'beginner') {
+    personaPrefix = 'In simple terms: ';
+  } else if (persona === 'exam_prep') {
+    personaPrefix = 'Key Exam Prep Points: ';
+  } else if (persona === 'research') {
+    personaPrefix = 'Research Synthesis & Critique: ';
+  } else if (customInstructions) {
+    personaPrefix = `[Guided by custom instructions: "${customInstructions.slice(0, 50)}..."] `;
+  }
+
+  // Synthesize grounded answer from top matching chunks
+  let synthesizedAnswer = '';
+  if (matchedChunks.length > 0) {
+    const topChunk = matchedChunks[0];
+    const evidenceText = topChunk.chunk.text.slice(0, 180).replace(/\n/g, ' ');
+    const sourceRef = topChunk.citation.formattedReference;
+
+    synthesizedAnswer = `${personaPrefix}Based on your selected sources for "${query}": Found ${matchedChunks.length} verifiable evidence passage(s) across ${retrieval.activeSourceCount} source(s). The documentation verifies: "${evidenceText}..." ${sourceRef}. All claims are strictly grounded in your active sources.`;
+  } else {
+    synthesizedAnswer = `${personaPrefix}Based on your selected sources: Context was found regarding your query, but keyword relevance was low. Try refining your question.`;
+  }
 
   return {
-    answer: `Grounded Synthesis for "${query}": Found relevant intelligence across ${targetNotes.length} saved sources in your Brainnote library. The documentation confirms: "${targetNotes[0]?.content.slice(0, 150)}..." All claims are grounded directly in your saved transcripts.`,
+    answer: synthesizedAnswer,
     citations,
-    confidence: 0.96,
+    confidence: matchedChunks.length > 0 ? 0.96 : 0.45,
   };
 }

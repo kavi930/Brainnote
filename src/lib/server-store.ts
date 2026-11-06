@@ -1,10 +1,23 @@
 // ==============================================================================
-// Brainnote AI — Shared Multi-Tenant Persistence Store
-// Connects Extension captures, REST APIs, and Web Workspace into a unified store
+// Brainnote AI — Multi-Tenant Persistence Store & Adapter
+// NOTE ON PERSISTENCE ARCHITECTURE:
+// In production environments, PostgreSQL (defined in src/db/schema.sql and
+// migrations/002_notebooks_and_conversations.sql) is the authoritative, 
+// ACID-compliant datastore. This module provides the in-process state adapter
+// for fast local development, deterministic test execution, and API compatibility.
 // ==============================================================================
 
 import { INITIAL_TENANTS, TenantDataset } from './mock-data';
-import { Note, AIArtifact, Collaborator } from '@/types';
+import { Note, AIArtifact, Collaborator, Notebook } from '@/types';
+import { isDatabaseConfigured } from './db/client';
+import {
+  fetchTenantStoreFromDb,
+  saveNoteToDb,
+  updateNoteArtifactInDb,
+  deleteNoteFromDb,
+  inviteCollaboratorInDb,
+  removeCollaboratorFromDb,
+} from './db/queries';
 
 // Global server store in memory (persists across API requests in Node.js runtime)
 declare global {
@@ -97,6 +110,30 @@ export function getTenantStore(tenantId: string): TenantDataset {
   return global.__BRAINNOTE_STORE__[tenantId];
 }
 
+/**
+ * Asynchronously retrieves tenant dataset from Supabase PostgreSQL if configured,
+ * otherwise hydrates and returns the in-memory store.
+ */
+export async function getTenantStoreAsync(tenantId: string): Promise<TenantDataset> {
+  if (isDatabaseConfigured()) {
+    try {
+      const dbDataset = await fetchTenantStoreFromDb(tenantId);
+      if (dbDataset && dbDataset.tenant) {
+        // Cache in memory for fast local response
+        if (!global.__BRAINNOTE_STORE__) {
+          global.__BRAINNOTE_STORE__ = {};
+        }
+        global.__BRAINNOTE_STORE__[tenantId] = dbDataset;
+        return dbDataset;
+      }
+    } catch (err) {
+      console.warn('[server-store] Failed to fetch from Supabase, falling back to in-memory:', err);
+    }
+  }
+
+  return getTenantStore(tenantId);
+}
+
 export function getAllDatasets(): Record<string, TenantDataset> {
   if (!global.__BRAINNOTE_STORE__) {
     global.__BRAINNOTE_STORE__ = JSON.parse(JSON.stringify(INITIAL_TENANTS));
@@ -119,7 +156,22 @@ export function saveNoteToStore(tenantId: string, note: Note): Note {
     store.usage.notesCount = store.notes.length;
   }
 
+  // Non-blocking background sync if DB is configured
+  if (isDatabaseConfigured()) {
+    saveNoteToDb(tenantId, note).catch((err) => {
+      console.warn('[server-store] Background sync to Supabase failed:', err);
+    });
+  }
+
   return note;
+}
+
+export async function saveNoteToStoreAsync(tenantId: string, note: Note): Promise<Note> {
+  const saved = saveNoteToStore(tenantId, note);
+  if (isDatabaseConfigured()) {
+    await saveNoteToDb(tenantId, note);
+  }
+  return saved;
 }
 
 export function updateNoteArtifact(
@@ -136,7 +188,26 @@ export function updateNoteArtifact(
     ...(note.aiArtifacts || []).filter((a) => a.artifactType !== artifact.artifactType),
   ];
   note.updatedAt = new Date().toISOString();
+
+  if (isDatabaseConfigured()) {
+    updateNoteArtifactInDb(tenantId, noteId, artifact).catch((err) => {
+      console.warn('[server-store] Background artifact sync to Supabase failed:', err);
+    });
+  }
+
   return true;
+}
+
+export async function updateNoteArtifactAsync(
+  tenantId: string,
+  noteId: string,
+  artifact: AIArtifact
+): Promise<boolean> {
+  const success = updateNoteArtifact(tenantId, noteId, artifact);
+  if (success && isDatabaseConfigured()) {
+    await updateNoteArtifactInDb(tenantId, noteId, artifact);
+  }
+  return success;
 }
 
 export function deleteNoteFromStore(tenantId: string, noteId: string): boolean {
@@ -144,7 +215,22 @@ export function deleteNoteFromStore(tenantId: string, noteId: string): boolean {
   const prevLen = store.notes.length;
   store.notes = store.notes.filter((n) => n.id !== noteId);
   store.usage.notesCount = store.notes.length;
+
+  if (isDatabaseConfigured()) {
+    deleteNoteFromDb(tenantId, noteId).catch((err) => {
+      console.warn('[server-store] Background delete sync to Supabase failed:', err);
+    });
+  }
+
   return store.notes.length < prevLen;
+}
+
+export async function deleteNoteFromStoreAsync(tenantId: string, noteId: string): Promise<boolean> {
+  const removed = deleteNoteFromStore(tenantId, noteId);
+  if (removed && isDatabaseConfigured()) {
+    await deleteNoteFromDb(tenantId, noteId);
+  }
+  return removed;
 }
 
 export function clearDemoNotesFromStore(tenantId: string): void {
@@ -204,7 +290,28 @@ export function inviteCollaborator(
     invitedAt: new Date().toISOString(),
   };
   store.collaborators.push(newCollab);
+
+  if (isDatabaseConfigured()) {
+    inviteCollaboratorInDb(tenantId, cleanEmail, name, role).catch((err) => {
+      console.warn('[server-store] Background collaborator invite sync failed:', err);
+    });
+  }
+
   return newCollab;
+}
+
+export async function inviteCollaboratorAsync(
+  tenantId: string, 
+  email: string, 
+  name?: string, 
+  role: 'editor' | 'viewer' = 'editor'
+): Promise<Collaborator> {
+  const collab = inviteCollaborator(tenantId, email, name, role);
+  if (isDatabaseConfigured()) {
+    const dbCollab = await inviteCollaboratorInDb(tenantId, email, name, role);
+    if (dbCollab) return dbCollab;
+  }
+  return collab;
 }
 
 export function removeCollaborator(tenantId: string, collabId: string): boolean {
@@ -212,5 +319,91 @@ export function removeCollaborator(tenantId: string, collabId: string): boolean 
   if (!store.collaborators) return false;
   const initial = store.collaborators.length;
   store.collaborators = store.collaborators.filter((c) => c.id !== collabId);
+
+  if (isDatabaseConfigured()) {
+    removeCollaboratorFromDb(tenantId, collabId).catch((err) => {
+      console.warn('[server-store] Background collaborator removal sync failed:', err);
+    });
+  }
+
   return store.collaborators.length < initial;
 }
+
+export async function removeCollaboratorAsync(tenantId: string, collabId: string): Promise<boolean> {
+  const removed = removeCollaborator(tenantId, collabId);
+  if (removed && isDatabaseConfigured()) {
+    await removeCollaboratorFromDb(tenantId, collabId);
+  }
+  return removed;
+}
+
+// ==============================================================================
+// Backward-Compatible Notebook Domain Mapping
+// Connects existing Notes into first-class NotebookLM-style Notebook entities
+// ==============================================================================
+
+export function getTenantNotebooks(tenantId: string): Notebook[] {
+  const store = getTenantStore(tenantId);
+  return store.notes.map((note) => ({
+    id: note.id,
+    tenantId: note.tenantId,
+    userId: note.userId,
+    title: note.title,
+    description: note.content ? note.content.slice(0, 240) : '',
+    sources: note.sources || [],
+    selectedSourceIds: (note.sources || []).map((s) => s.id),
+    conversation: [
+      {
+        id: `msg-init-${note.id}`,
+        role: 'assistant',
+        content: `I've analyzed your sources for **${note.title}**. Ask anything about this material or choose a study action from the Studio.`,
+        timestamp: note.createdAt,
+      },
+    ],
+    artifacts: note.aiArtifacts || [],
+    savedNotes: [note],
+    persona: 'default',
+    isArchived: note.isArchived,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+  }));
+}
+
+export function getNotebookById(tenantId: string, notebookId: string): Notebook | null {
+  const notebooks = getTenantNotebooks(tenantId);
+  return notebooks.find((nb) => nb.id === notebookId) || null;
+}
+
+export async function getTenantNotebooksAsync(tenantId: string): Promise<Notebook[]> {
+  const store = await getTenantStoreAsync(tenantId);
+  return store.notes.map((note) => ({
+    id: note.id,
+    tenantId: note.tenantId,
+    userId: note.userId,
+    title: note.title,
+    description: note.content ? note.content.slice(0, 240) : '',
+    sources: note.sources || [],
+    selectedSourceIds: (note.sources || []).map((s) => s.id),
+    conversation: [
+      {
+        id: `msg-init-${note.id}`,
+        role: 'assistant',
+        content: `I've analyzed your sources for **${note.title}**. Ask anything about this material or choose a study action from the Studio.`,
+        timestamp: note.createdAt,
+      },
+    ],
+    artifacts: note.aiArtifacts || [],
+    savedNotes: [note],
+    persona: 'default',
+    isArchived: note.isArchived,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+  }));
+}
+
+export async function getNotebookByIdAsync(tenantId: string, notebookId: string): Promise<Notebook | null> {
+  const notebooks = await getTenantNotebooksAsync(tenantId);
+  return notebooks.find((nb) => nb.id === notebookId) || null;
+}
+
+

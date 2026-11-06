@@ -104,6 +104,7 @@ export interface CitationAnchor {
   sourceType: SourceType;
   timestampSeconds?: number;
   pageNumber?: number;
+  slideNumber?: number;
   citationText: string;
   formattedReference: string; // e.g. "[YouTube @ 12:45]" or "[PDF p. 14]"
 }
@@ -229,4 +230,53 @@ export interface ShareLink {
   allowPublicEdits: boolean;
   createdAt: string;
 }
+
+export type NotebookPersona = 
+  | 'default' 
+  | 'teacher' 
+  | 'technical' 
+  | 'executive' 
+  | 'beginner' 
+  | 'exam_prep' 
+  | 'research' 
+  | 'custom';
+
+export interface NotebookMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  citations?: CitationAnchor[];
+  timestamp: string;
+}
+
+export interface Notebook {
+  id: string;
+  tenantId: string;
+  userId: string;
+  title: string;
+  description?: string;
+  sources: NoteSource[];
+  selectedSourceIds: string[];
+  conversation: NotebookMessage[];
+  artifacts: AIArtifact[];
+  savedNotes: Note[];
+  persona: NotebookPersona;
+  customInstructions?: string;
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantDataset {
+  tenant: Tenant;
+  user: User;
+  subscription: Subscription;
+  usage: UsageRecord;
+  folders: Folder[];
+  tags: Tag[];
+  notes: Note[];
+  collaborators?: Collaborator[];
+}
+
+
 

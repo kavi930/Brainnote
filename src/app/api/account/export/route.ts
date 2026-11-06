@@ -4,7 +4,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantStore } from '@/lib/server-store';
+import { getTenantStoreAsync } from '@/lib/server-store';
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const dataset = getTenantStore(tenantId);
+    const dataset = await getTenantStoreAsync(tenantId);
     if (!dataset) {
       return NextResponse.json(
         { error: 'Tenant record not found or access denied.' },

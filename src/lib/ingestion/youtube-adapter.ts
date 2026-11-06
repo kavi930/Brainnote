@@ -46,8 +46,13 @@ export async function ingestYouTubeSource(req: IngestionRequest): Promise<Ingest
     };
   }
 
-  // Check if simulated video has transcripts disabled
-  if (url.includes('no-transcript') || url.includes('restricted-drm')) {
+  // Check if simulated or real video has transcripts disabled or restricted
+  if (
+    url.includes('no-transcript') || 
+    url.includes('restricted-drm') || 
+    url.includes('private-video') ||
+    url.includes('captions-off')
+  ) {
     return {
       success: false,
       sourceId,
@@ -69,20 +74,61 @@ export async function ingestYouTubeSource(req: IngestionRequest): Promise<Ingest
     };
   }
 
-  // Simulated timestamped transcript extraction
+  // Parse rawText if supplied, otherwise use structured transcript
   const videoTitle = req.title || `YouTube Video (${videoId})`;
-  const transcriptSegments = [
-    { time: '00:00:15', seconds: 15, text: 'Welcome to this keynote on architectural foundations and AI systems.' },
-    { time: '00:03:45', seconds: 225, text: 'Keynote emphasizes that multi-tenant data isolation must be enforced at the database storage engine layer.' },
-    { time: '00:08:20', seconds: 500, text: 'Grounded retrieval augmented generation ensures every generated claim references a verifiable timestamp.' },
-    { time: '00:14:10', seconds: 850, text: 'Finally, 7-day trials with pre-flight token gating prevent unmetered downstream API abuse.' },
-  ];
+  let transcriptSegments: { time: string; seconds: number; text: string }[] = [];
+
+  if (req.rawText && req.rawText.includes('[')) {
+    const lines = req.rawText.split('\n');
+    for (const line of lines) {
+      const match = line.match(/\[(\d{2}):(\d{2}):?(\d{2})?\]\s*(.*)/);
+      if (match) {
+        let secs = 0;
+        let timeStr = '00:00:00';
+        if (match[3]) {
+          secs = parseInt(match[1], 10) * 3600 + parseInt(match[2], 10) * 60 + parseInt(match[3], 10);
+          timeStr = `${match[1]}:${match[2]}:${match[3]}`;
+        } else {
+          secs = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+          timeStr = `00:${match[1]}:${match[2]}`;
+        }
+        transcriptSegments.push({
+          time: timeStr,
+          seconds: secs,
+          text: match[4]?.trim() || '',
+        });
+      }
+    }
+  }
+
+  if (transcriptSegments.length === 0) {
+    transcriptSegments = [
+      { time: '00:00:15', seconds: 15, text: 'Welcome to this keynote on architectural foundations and AI systems.' },
+      { time: '00:03:45', seconds: 225, text: 'Keynote emphasizes that multi-tenant data isolation must be enforced at the database storage engine layer.' },
+      { time: '00:08:20', seconds: 500, text: 'Grounded retrieval augmented generation ensures every generated claim references a verifiable timestamp.' },
+      { time: '00:14:10', seconds: 850, text: 'Finally, 7-day trials with pre-flight token gating prevent unmetered downstream API abuse.' },
+    ];
+  }
 
   const rawTranscript = transcriptSegments
     .map((s) => `[${s.time}] ${s.text}`)
     .join('\n');
 
   const sanitizedTranscript = sanitizeSourceContent(rawTranscript);
+
+  // Generate chunks with timestampSeconds metadata
+  const chunks = transcriptSegments.map((s, idx) => ({
+    id: `${sourceId}-chk-${idx}`,
+    sourceId,
+    sourceTitle: videoTitle,
+    sourceType: 'youtube' as const,
+    chunkIndex: idx,
+    text: s.text,
+    timestampSeconds: s.seconds,
+    charStart: idx * 120,
+    charEnd: idx * 120 + s.text.length,
+    tokenCountEstimate: Math.max(1, Math.ceil(s.text.length / 4)),
+  }));
 
   const citations: CitationAnchor[] = transcriptSegments.map((s) => ({
     sourceId,
@@ -93,10 +139,13 @@ export async function ingestYouTubeSource(req: IngestionRequest): Promise<Ingest
     formattedReference: `[YouTube @ ${s.time.slice(3)}]`,
   }));
 
+  const durationSeconds = Math.max(900, (transcriptSegments[transcriptSegments.length - 1]?.seconds || 900) + 60);
+
   const structuredMarkdown = `### Notes: ${videoTitle}
 **Source:** [YouTube Video](${url})
-**Duration:** ~15 minutes
+**Duration:** ~${Math.ceil(durationSeconds / 60)} minutes
 **Processing Engine:** Timestamped Caption Parser
+**Indexed Units:** ${chunks.length} timestamped evidence chunks
 
 #### Key Takeaways
 - Enforce strict database row-level security for tenant separation.
@@ -118,12 +167,14 @@ ${transcriptSegments.map((s) => `- **[${s.time}]** ${s.text}`).join('\n')}
     isAsync: false,
     extractedText: sanitizedTranscript,
     structuredMarkdown,
-    durationSeconds: 900,
+    chunks,
+    durationSeconds,
     citations,
     metadata: {
       videoId,
       captionLanguage: 'en',
       segmentCount: transcriptSegments.length,
+      chunksCount: chunks.length,
     },
   };
 }

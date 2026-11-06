@@ -13,7 +13,7 @@ import {
   generateInterviewQA,
   answerQuestionGrounded 
 } from '@/lib/ai-provider';
-import { updateNoteArtifact } from '@/lib/server-store';
+import { updateNoteArtifactAsync } from '@/lib/server-store';
 import { AIArtifactType } from '@/types';
 
 export async function POST(req: NextRequest) {
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    updateNoteArtifact(tenantId, noteId, artifact as any);
+    await updateNoteArtifactAsync(tenantId, noteId, artifact as any);
 
     return NextResponse.json({
       success: true,

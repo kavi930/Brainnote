@@ -3,9 +3,10 @@
 // Enforces participant consent verification, speaker diarization, and timestamping
 // ==============================================================================
 
-import { IngestionRequest, IngestionResult, INGESTION_LIMITS } from './types';
+import { IngestionRequest, IngestionResult, INGESTION_LIMITS, TextChunk } from './types';
 import { sanitizeSourceContent } from './sanitizer';
 import { CitationAnchor } from '@/types';
+import { createIngestionJob } from './jobs';
 
 export async function ingestAudioMeetingSource(req: IngestionRequest): Promise<IngestionResult> {
   const sourceId = `src-audio-${Date.now()}`;
@@ -85,6 +86,12 @@ export async function ingestAudioMeetingSource(req: IngestionRequest): Promise<I
   const isLargeAsync = fileBytes > 25 * 1024 * 1024;
   const durationSeconds = 1800; // 30 minutes
 
+  let jobId: string | undefined;
+  if (isLargeAsync) {
+    const job = createIngestionJob(req.tenantId, sourceId, req.sourceType, fileName);
+    jobId = job.id;
+  }
+
   const diarizedSegments = [
     { time: '00:00:10', seconds: 10, speaker: 'David (CTO)', text: 'Let us review the security architecture and multi-tenant RLS guarantees.' },
     { time: '00:04:30', seconds: 270, speaker: 'Elena (Lead Architect)', text: 'Every SQL query uses tenant_id in where clauses and PostgreSQL row-level security verifies user claim tokens.' },
@@ -97,6 +104,20 @@ export async function ingestAudioMeetingSource(req: IngestionRequest): Promise<I
     .join('\n');
 
   const sanitized = sanitizeSourceContent(rawTranscript);
+
+  // Generate chunks with timestampSeconds and speaker context
+  const chunks: TextChunk[] = diarizedSegments.map((s, idx) => ({
+    id: `${sourceId}-chk-${idx}`,
+    sourceId,
+    sourceTitle: fileName,
+    sourceType: isMeeting ? 'meeting' : 'audio',
+    chunkIndex: idx,
+    text: `${s.speaker}: ${s.text}`,
+    timestampSeconds: s.seconds,
+    charStart: idx * 100,
+    charEnd: idx * 100 + s.text.length,
+    tokenCountEstimate: Math.max(1, Math.ceil(s.text.length / 4)),
+  }));
 
   const citations: CitationAnchor[] = diarizedSegments.map((s) => ({
     sourceId,
@@ -112,6 +133,7 @@ export async function ingestAudioMeetingSource(req: IngestionRequest): Promise<I
 **Duration:** ~${Math.floor(durationSeconds / 60)} minutes
 **Consent Verified:** ${isMeeting ? 'Yes (All Participants)' : 'N/A'}
 **Diarization Engine:** Whisper + PyAnnote Speaker Diarization
+**Indexed Units:** ${chunks.length} timestamped audio transcript chunks
 
 #### Discussion Highlights
 - Reviewed database isolation with PostgreSQL Row-Level Security.
@@ -130,9 +152,10 @@ ${diarizedSegments.map((s) => `- **[${s.time}] ${s.speaker}:** ${s.text}`).join(
     title: fileName,
     processingStatus: isLargeAsync ? 'processing' : 'completed',
     isAsync: isLargeAsync,
-    jobId: isLargeAsync ? `job-audio-${Date.now()}` : undefined,
+    jobId,
     extractedText: sanitized,
     structuredMarkdown,
+    chunks,
     durationSeconds,
     fileSizeBytes: fileBytes,
     citations,
@@ -142,6 +165,7 @@ ${diarizedSegments.map((s) => `- **[${s.time}] ${s.speaker}:** ${s.text}`).join(
       meetingPlatform: req.meetingPlatform || 'custom_recording',
       consentConfirmed: req.meetingConsentConfirmed,
       speakers: ['David (CTO)', 'Elena (Lead Architect)', 'Marcus (Product Lead)'],
+      chunksCount: chunks.length,
     },
   };
 }

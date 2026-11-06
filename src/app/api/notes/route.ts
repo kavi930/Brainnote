@@ -7,9 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getTenantStore,
-  saveNoteToStore,
-  deleteNoteFromStore,
+  getTenantStoreAsync,
+  saveNoteToStoreAsync,
+  deleteNoteFromStoreAsync,
   clearDemoNotesFromStore,
 } from '@/lib/server-store';
 import { Note } from '@/types';
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const tenantId = searchParams.get('tenantId') || 'tenant-acme';
 
-    const store = getTenantStore(tenantId);
+    const store = await getTenantStoreAsync(tenantId);
     return NextResponse.json({
       success: true,
       tenantId,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const saved = saveNoteToStore(tenantId, note as Note);
+    const saved = await saveNoteToStoreAsync(tenantId, note as Note);
     return NextResponse.json({
       success: true,
       note: saved,
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest) {
 
     if (action === 'clear_demo') {
       clearDemoNotesFromStore(tenantId);
-      const store = getTenantStore(tenantId);
+      const store = await getTenantStoreAsync(tenantId);
       return NextResponse.json({
         success: true,
         message: 'Demo notes cleared. Showing only your personal data.',
@@ -86,7 +86,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const removed = deleteNoteFromStore(tenantId, noteId);
+    const removed = await deleteNoteFromStoreAsync(tenantId, noteId);
     return NextResponse.json({
       success: removed,
       deletedNoteId: noteId,

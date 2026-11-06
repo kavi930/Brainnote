@@ -15,6 +15,7 @@ export * from './youtube-adapter';
 export * from './document-adapter';
 export * from './audio-meeting-adapter';
 export * from './web-adapter';
+export * from './jobs';
 
 export async function processSourceIngestion(req: IngestionRequest): Promise<IngestionResult> {
   if (!req.tenantId) {

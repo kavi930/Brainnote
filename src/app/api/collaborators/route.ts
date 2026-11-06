@@ -6,14 +6,15 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCollaborators, inviteCollaborator, removeCollaborator } from '@/lib/server-store';
+import { getTenantStoreAsync, inviteCollaboratorAsync, removeCollaboratorAsync } from '@/lib/server-store';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const tenantId = searchParams.get('tenantId') || 'tenant-acme';
 
-    const collaborators = getCollaborators(tenantId);
+    const store = await getTenantStoreAsync(tenantId);
+    const collaborators = store.collaborators || [];
     return NextResponse.json({
       success: true,
       tenantId,
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const collaborator = inviteCollaborator(tenantId, email, name, role);
+    const collaborator = await inviteCollaboratorAsync(tenantId, email, name, role);
 
     return NextResponse.json({
       success: true,
@@ -70,7 +71,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const removed = removeCollaborator(tenantId, collabId);
+    const removed = await removeCollaboratorAsync(tenantId, collabId);
     return NextResponse.json({
       success: removed,
       message: removed ? 'Collaborator access revoked successfully.' : 'Collaborator not found.',

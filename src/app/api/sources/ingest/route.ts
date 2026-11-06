@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { processSourceIngestion, IngestionRequest } from '@/lib/ingestion';
-import { saveNoteToStore } from '@/lib/server-store';
+import { saveNoteToStoreAsync } from '@/lib/server-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -89,6 +89,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 1. Pre-flight Tenant Usage & Quota Gating (Cost Controls)
+    const { getTenantStoreAsync } = await import('@/lib/server-store');
+    const store = await getTenantStoreAsync(ingestionReq.tenantId);
+
+    if (store.usage.notesCount >= store.usage.notesLimit) {
+      return NextResponse.json(
+        {
+          error: `Notes limit (${store.usage.notesLimit}) reached for current plan. Please upgrade your subscription.`,
+          code: 'QUOTA_EXCEEDED',
+          quotaType: 'notes',
+        },
+        { status: 402 }
+      );
+    }
+
+    const prospectiveBytes = ingestionReq.fileSizeBytes || 1_200_000;
+    if (store.usage.storageBytesConsumed + prospectiveBytes > store.usage.storageBytesLimit) {
+      return NextResponse.json(
+        {
+          error: `Storage capacity limit (${(store.usage.storageBytesLimit / (1024 * 1024)).toFixed(0)}MB) exceeded.`,
+          code: 'QUOTA_EXCEEDED',
+          quotaType: 'storage',
+        },
+        { status: 402 }
+      );
+    }
+
+    if (
+      (ingestionReq.sourceType === 'audio' || ingestionReq.sourceType === 'meeting') &&
+      store.usage.audioMinutesTranscribed >= store.usage.audioMinutesLimit
+    ) {
+      return NextResponse.json(
+        {
+          error: `Audio transcription minutes quota (${store.usage.audioMinutesLimit} mins) exhausted.`,
+          code: 'QUOTA_EXCEEDED',
+          quotaType: 'audioMinutes',
+        },
+        { status: 402 }
+      );
+    }
+
+    // 2. Duplicate Source Detection
+    for (const note of store.notes) {
+      for (const existingSrc of note.sources || []) {
+        const isUrlDup = ingestionReq.sourceUrl && existingSrc.sourceUrl === ingestionReq.sourceUrl;
+        const isFileDup =
+          ingestionReq.fileName &&
+          existingSrc.title === ingestionReq.fileName &&
+          existingSrc.fileSizeBytes === ingestionReq.fileSizeBytes;
+
+        if (isUrlDup || isFileDup) {
+          return NextResponse.json({
+            success: true,
+            isDuplicate: true,
+            message: `Source "${existingSrc.title}" is already present in your knowledge library.`,
+            noteId: note.id,
+            source: existingSrc,
+            note,
+          });
+        }
+      }
+    }
+
     const result = await processSourceIngestion(ingestionReq);
 
     if (!result.success) {
@@ -154,7 +217,15 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    saveNoteToStore(ingestionReq.tenantId, newNote as any);
+    // 3. Record consumption metrics into tenant usage
+    store.usage.notesCount += 1;
+    store.usage.storageBytesConsumed += result.fileSizeBytes || 1_200_000;
+    if (result.sourceType === 'audio' || result.sourceType === 'meeting') {
+      store.usage.audioMinutesTranscribed += Math.ceil((result.durationSeconds || 1800) / 60);
+    }
+    store.usage.aiTokensConsumed += 1200;
+
+    await saveNoteToStoreAsync(ingestionReq.tenantId, newNote as any);
 
     return NextResponse.json({
       success: true,
