@@ -11,7 +11,8 @@ import {
   generateFlashcards, 
   generateQuiz,
   generateInterviewQA,
-  answerQuestionGrounded 
+  answerQuestionGrounded,
+  assistWriting
 } from '@/lib/ai-provider';
 import { updateNoteArtifactAsync } from '@/lib/server-store';
 import { AIArtifactType } from '@/types';
@@ -122,6 +123,18 @@ export async function POST(req: NextRequest) {
         tokensUsed = res.tokensUsed;
         modelUsed = res.modelUsed;
         break;
+      }
+
+      case 'writing_assist': {
+        const action = (body.writingAction || 'improve') as 'improve' | 'grammar' | 'expand' | 'key_points' | 'summarize' | 'faq';
+        const res = await assistWriting(action, content || '', effectiveTitle);
+        return NextResponse.json({
+          success: true,
+          action,
+          result: res.result,
+          tokensUsed: res.tokensUsed,
+          modelUsed: res.modelUsed,
+        });
       }
 
       default:

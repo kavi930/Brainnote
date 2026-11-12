@@ -1,6 +1,15 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { AppSidebar } from '@/components/layout/AppSidebar';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { HomeDashboardView } from '@/components/views/HomeDashboardView';
+import { KnowledgeLibraryView } from '@/components/views/KnowledgeLibraryView';
+import { ChatStudioView } from '@/components/views/ChatStudioView';
+import { CreationStudioView } from '@/components/views/CreationStudioView';
+import { LearningReviewView } from '@/components/views/LearningReviewView';
+import { MeetingIntelligenceView } from '@/components/views/MeetingIntelligenceView';
+import { MyNotesView } from '@/components/views/MyNotesView';
 import { ThreePanelWorkspace } from '@/components/workspace/ThreePanelWorkspace';
 import { IngestSourceModal } from '@/components/IngestSourceModal';
 import { BillingModal } from '@/components/BillingModal';
@@ -14,20 +23,28 @@ import {
   AIArtifact, 
   AIArtifactType, 
   SubscriptionTier, 
-  CitationAnchor,
-  Notebook,
-  NotebookMessage,
-  NotebookPersona
+  Notebook, 
+  NotebookMessage, 
+  NotebookPersona,
+  PrimaryNavSection
 } from '@/types';
 import { checkAITokenQuota, PLAN_CONFIGS } from '@/lib/billing';
 
 export default function BrainnoteApp() {
+  // Navigation State
+  const [currentSection, setCurrentSection] = useState<PrimaryNavSection>('home');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // Multi-tenant state store
   const [datasets, setDatasets] = useState<Record<string, TenantDataset>>(INITIAL_TENANTS);
   const [activeTenantId, setActiveTenantId] = useState<string>('tenant-acme');
 
   // Active notebook selection
   const [activeNotebookId, setActiveNotebookId] = useState<string>('note-custom-llm-eval-harness');
+
+  // Active selected note for My Notes
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   // Per-notebook selective source grounding map: { [notebookId]: string[] }
   const [selectedSourceMap, setSelectedSourceMap] = useState<Record<string, string[]>>({});
@@ -154,6 +171,11 @@ export default function BrainnoteApp() {
     }
   }, [notebooks, activeNotebookId]);
 
+  // Total sources across all notebooks
+  const totalSourcesCount = useMemo(() => {
+    return notebooks.reduce((acc, nb) => acc + (nb.sources?.length || 0), 0);
+  }, [notebooks]);
+
   // Toggle Source in Grounding Set
   const handleToggleSource = (sourceId: string) => {
     if (!activeNotebook) return;
@@ -269,7 +291,7 @@ export default function BrainnoteApp() {
   const handleSendMessage = async (query: string) => {
     if (!activeNotebook || !query.trim()) return;
 
-    // Check pre-flight subscription and token quota (Condition 4)
+    // Check pre-flight subscription and token quota
     const quota = checkAITokenQuota(currentDataset.usage, currentDataset.subscription, 800);
     if (!quota.allowed) {
       showToast(quota.reason || 'AI Token Quota Exceeded or Trial Expired');
@@ -293,7 +315,6 @@ export default function BrainnoteApp() {
     setIsGeneratingChat(true);
 
     try {
-      // Connect to Grounded Search API with selected source IDs (Condition 3)
       const res = await fetch('/api/search/grounded', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,7 +344,6 @@ export default function BrainnoteApp() {
           [activeNotebook.id]: [...(prev[activeNotebook.id] || []), aiMsg],
         }));
 
-        // Meter tokens in local usage state
         setDatasets((prev) => ({
           ...prev,
           [activeTenantId]: {
@@ -377,6 +397,108 @@ export default function BrainnoteApp() {
     showToast('Saved response to notebook notes!');
   };
 
+  // Save note handler for My Notes view
+  const handleSaveNote = async (note: Note) => {
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      const existingIdx = current.notes.findIndex((n) => n.id === note.id);
+      const updatedNotes = existingIdx >= 0
+        ? current.notes.map((n) => (n.id === note.id ? note : n))
+        : [note, ...current.notes];
+
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          notes: updatedNotes,
+          usage: {
+            ...current.usage,
+            notesCount: updatedNotes.length,
+          },
+        },
+      };
+    });
+
+    try {
+      await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: activeTenantId,
+          note,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to sync note:', err);
+    }
+  };
+
+  // Delete note handler for My Notes view
+  const handleDeleteNote = async (noteId: string) => {
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      const updatedNotes = current.notes.filter((n) => n.id !== noteId);
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          notes: updatedNotes,
+          usage: {
+            ...current.usage,
+            notesCount: updatedNotes.length,
+          },
+        },
+      };
+    });
+
+    try {
+      await fetch(`/api/notes?tenantId=${activeTenantId}&noteId=${noteId}`, {
+        method: 'DELETE',
+      });
+      showToast('Note deleted');
+    } catch {
+      showToast('Note deleted locally');
+    }
+  };
+
+  // Create Quick Note action accessible throughout app
+  const handleCreateQuickNote = () => {
+    const newNoteId = `note-${Date.now()}`;
+    const newNote: Note = {
+      id: newNoteId,
+      tenantId: activeTenantId,
+      userId: currentDataset.user.id,
+      title: 'Untitled Note',
+      content: '',
+      isPinned: false,
+      isArchived: false,
+      tags: [],
+      sources: [],
+      aiArtifacts: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          notes: [newNote, ...current.notes],
+          usage: {
+            ...current.usage,
+            notesCount: current.notes.length + 1,
+          },
+        },
+      };
+    });
+
+    setSelectedNoteId(newNoteId);
+    setCurrentSection('my_notes');
+    showToast('New note created');
+  };
+
   // Persona selection handler
   const handleSelectPersona = (persona: NotebookPersona, customText?: string) => {
     if (!activeNotebook) return;
@@ -402,7 +524,6 @@ export default function BrainnoteApp() {
       return;
     }
 
-    // Check pre-flight subscription quota (Condition 4)
     const quota = checkAITokenQuota(currentDataset.usage, currentDataset.subscription, 1500);
     if (!quota.allowed) {
       showToast(quota.reason || 'AI Token Quota Exceeded or Trial Expired');
@@ -413,13 +534,13 @@ export default function BrainnoteApp() {
     setIsGeneratingStudio(true);
     setGeneratingToolId(toolId);
 
-    // Map toolId to backend AIArtifactType
     let artifactType: AIArtifactType = 'summary';
     if (toolId === 'meeting_minutes') artifactType = 'meeting_minutes';
     else if (toolId === 'action_items') artifactType = 'action_items';
     else if (toolId === 'flashcards') artifactType = 'flashcards';
     else if (toolId === 'quiz') artifactType = 'quiz';
     else if (toolId === 'faq') artifactType = 'qa';
+    else if (toolId === 'interview_prep') artifactType = 'interview_qa';
     else if (toolId === 'study_guide' || toolId === 'revision_notes') artifactType = 'study_guide';
 
     const selectedSources = activeNotebook.sources.filter((s) => activeNotebook.selectedSourceIds.includes(s.id));
@@ -550,7 +671,6 @@ export default function BrainnoteApp() {
       },
     }));
 
-    // Auto-select the newly ingested source for grounding
     setSelectedSourceMap((prev) => ({
       ...prev,
       [activeNotebook.id]: [...(prev[activeNotebook.id] || []), newSource.id],
@@ -596,42 +716,208 @@ export default function BrainnoteApp() {
     showToast(`Upgraded workspace to ${tier.toUpperCase()} Plan!`);
   };
 
+  const handleSelectSection = (section: PrimaryNavSection) => {
+    if (section === 'settings') {
+      setIsBillingModalOpen(true);
+    } else {
+      setCurrentSection(section);
+      setIsMobileSidebarOpen(false);
+    }
+  };
+
   // Calculate trial days remaining
   const trialEndMs = new Date(currentDataset.subscription.trialEnd).getTime();
   const trialDaysRemaining = Math.max(0, Math.ceil((trialEndMs - Date.now()) / (1000 * 60 * 60 * 24)));
 
   return (
-    <>
-      {/* 3-PANEL NOTEBOOK WORKSPACE */}
-      <ThreePanelWorkspace
-        notebooks={notebooks}
-        activeNotebook={activeNotebook}
-        onSelectNotebook={setActiveNotebookId}
-        onCreateNotebook={handleCreateNotebook}
-        onToggleSource={handleToggleSource}
-        onSelectAllSources={handleSelectAllSources}
-        onDeselectAllSources={handleDeselectAllSources}
-        onOpenAddSource={() => handleOpenAddSource('youtube')}
-        onDeleteSource={handleDeleteSource}
-        onSendMessage={handleSendMessage}
-        onSaveAsNote={handleSaveAsNote}
-        onSelectPersona={handleSelectPersona}
-        onGenerateStudioTool={handleGenerateStudioTool}
-        onDeleteArtifact={handleDeleteArtifact}
-        onOpenBilling={() => setIsBillingModalOpen(true)}
-        onOpenSettings={() => setIsBillingModalOpen(true)}
-        onOpenExtension={() => setIsExtensionModalOpen(true)}
-        onOpenShare={() => setIsShareModalOpen(true)}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        isGeneratingChat={isGeneratingChat}
-        isGeneratingStudio={isGeneratingStudio}
-        generatingToolId={generatingToolId}
-        trialDaysRemaining={trialDaysRemaining}
-        planTier={currentDataset.subscription.planTier}
-        userName={currentDataset.user.name}
-        tenantName={currentDataset.tenant.name}
-      />
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      {/* 1. DESKTOP SIDEBAR */}
+      <div className="hidden md:flex h-full">
+        <AppSidebar
+          currentSection={currentSection}
+          onSelectSection={handleSelectSection}
+          notebooks={notebooks}
+          activeNotebook={activeNotebook}
+          onSelectNotebook={setActiveNotebookId}
+          onCreateNotebook={handleCreateNotebook}
+          onOpenCapture={() => handleOpenAddSource('youtube')}
+          onOpenSettings={() => setIsBillingModalOpen(true)}
+          onOpenBilling={() => setIsBillingModalOpen(true)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          totalSourcesCount={totalSourcesCount}
+          notesCount={currentDataset.notes.length}
+          trialDaysRemaining={trialDaysRemaining}
+          planTier={currentDataset.subscription.planTier}
+          userName={currentDataset.user.name}
+          tenantName={currentDataset.tenant.name}
+        />
+      </div>
+
+      {/* 2. MOBILE SIDEBAR DRAWER OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <div className="relative z-10 w-72 max-w-[85vw] h-full shadow-2xl">
+            <AppSidebar
+              currentSection={currentSection}
+              onSelectSection={handleSelectSection}
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              onSelectNotebook={(id) => {
+                setActiveNotebookId(id);
+                setIsMobileSidebarOpen(false);
+              }}
+              onCreateNotebook={() => {
+                handleCreateNotebook();
+                setIsMobileSidebarOpen(false);
+              }}
+              onOpenCapture={() => {
+                handleOpenAddSource('youtube');
+                setIsMobileSidebarOpen(false);
+              }}
+              onOpenSettings={() => {
+                setIsBillingModalOpen(true);
+                setIsMobileSidebarOpen(false);
+              }}
+              onOpenBilling={() => {
+                setIsBillingModalOpen(true);
+                setIsMobileSidebarOpen(false);
+              }}
+              isCollapsed={false}
+              onToggleCollapse={() => setIsMobileSidebarOpen(false)}
+              totalSourcesCount={totalSourcesCount}
+              notesCount={currentDataset.notes.length}
+              trialDaysRemaining={trialDaysRemaining}
+              planTier={currentDataset.subscription.planTier}
+              userName={currentDataset.user.name}
+              tenantName={currentDataset.tenant.name}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 3. MAIN WORKSPACE CANVAS */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Universal Top Header */}
+        <AppHeader
+          currentSection={currentSection}
+          activeNotebook={activeNotebook}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
+          onOpenCapture={() => handleOpenAddSource('youtube')}
+          onOpenQuickNote={handleCreateQuickNote}
+          onOpenShare={() => setIsShareModalOpen(true)}
+          onOpenExtension={() => setIsExtensionModalOpen(true)}
+          onOpenBilling={() => setIsBillingModalOpen(true)}
+          planTier={currentDataset.subscription.planTier}
+        />
+
+        {/* Dynamic View Router */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {currentSection === 'home' && (
+            <HomeDashboardView
+              userName={currentDataset.user.name}
+              tenantName={currentDataset.tenant.name}
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              onSelectNotebook={setActiveNotebookId}
+              onCreateNotebook={handleCreateNotebook}
+              onNavigate={setCurrentSection}
+              onOpenCapture={handleOpenAddSource}
+              onToggleSource={handleToggleSource}
+            />
+          )}
+
+          {currentSection === 'library' && (
+            <KnowledgeLibraryView
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              onSelectNotebook={setActiveNotebookId}
+              selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+              onToggleSource={handleToggleSource}
+              onSelectAll={handleSelectAllSources}
+              onDeselectAll={handleDeselectAllSources}
+              onOpenCapture={handleOpenAddSource}
+              onDeleteSource={handleDeleteSource}
+            />
+          )}
+
+          {currentSection === 'my_notes' && (
+            <MyNotesView
+              notes={currentDataset.notes}
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              initialSelectedNoteId={selectedNoteId || undefined}
+              onSaveNote={handleSaveNote}
+              onDeleteNote={handleDeleteNote}
+              onNavigateToChat={(noteTitle, content) => {
+                setCurrentSection('ai_chat');
+                showToast(`Context set to: ${noteTitle}`);
+              }}
+              onNavigateToLearning={() => setCurrentSection('learning_review')}
+              onOpenShareModal={(note) => setIsShareModalOpen(true)}
+              onShowToast={showToast}
+              activeTenantId={activeTenantId}
+            />
+          )}
+
+          {currentSection === 'ai_chat' && (
+            <ChatStudioView
+              notebookTitle={activeNotebook?.title || 'Notebook Knowledge Workspace'}
+              messages={activeNotebook?.conversation || []}
+              sources={activeNotebook?.sources || []}
+              selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+              activePersona={activeNotebook?.persona || 'default'}
+              customInstructions={activeNotebook?.customInstructions}
+              onSendMessage={handleSendMessage}
+              onSaveAsNote={handleSaveAsNote}
+              onSelectPersona={handleSelectPersona}
+              onToggleSource={handleToggleSource}
+              onSelectAllSources={handleSelectAllSources}
+              onDeselectAllSources={handleDeselectAllSources}
+              isGenerating={isGeneratingChat}
+            />
+          )}
+
+          {currentSection === 'creation_studio' && (
+            <CreationStudioView
+              artifacts={activeNotebook?.artifacts || []}
+              selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+              sources={activeNotebook?.sources || []}
+              activeNotebookTitle={activeNotebook?.title || 'Notebook'}
+              onGenerateTool={handleGenerateStudioTool}
+              onDeleteArtifact={handleDeleteArtifact}
+              isGenerating={isGeneratingStudio}
+              generatingToolId={generatingToolId}
+            />
+          )}
+
+          {currentSection === 'learning_review' && (
+            <LearningReviewView
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              onSelectNotebook={setActiveNotebookId}
+              onGenerateTool={handleGenerateStudioTool}
+              isGenerating={isGeneratingStudio}
+            />
+          )}
+
+          {currentSection === 'meetings' && (
+            <MeetingIntelligenceView
+              notebooks={notebooks}
+              activeNotebook={activeNotebook}
+              onOpenCapture={handleOpenAddSource}
+              onGenerateTool={handleGenerateStudioTool}
+              isGenerating={isGeneratingStudio}
+            />
+          )}
+        </main>
+      </div>
 
       {/* MODAL 1: Ingest Source Modal (11 Source Types) */}
       <IngestSourceModal
@@ -672,6 +958,6 @@ export default function BrainnoteApp() {
           {toastMessage}
         </div>
       )}
-    </>
+    </div>
   );
 }

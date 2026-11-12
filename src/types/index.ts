@@ -8,27 +8,31 @@ export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled'
 export type SourceType = 'youtube' | 'pdf' | 'audio' | 'video' | 'web' | 'meeting' | 'presentation' | 'document';
 export type SourceProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
-export type AIArtifactType = 
-  | 'summary' 
-  | 'meeting_minutes' 
-  | 'action_items' 
-  | 'study_guide' 
-  | 'flashcards' 
-  | 'quiz' 
+export type AIArtifactType =
+  | 'summary'
+  | 'meeting_minutes'
+  | 'action_items'
+  | 'study_guide'
+  | 'flashcards'
+  | 'quiz'
   | 'qa'
-  | 'interview_qa';
+  | 'interview_qa'
+  | 'writing_assist';
 
-export type PrimaryNavSection = 
-  | 'home' 
-  | 'library' 
+export type PrimaryNavSection =
+  | 'home'
+  | 'library'
+  | 'my_notes'
+  | 'ai_chat'
+  | 'creation_studio'
+  | 'learning_review'
+  | 'meetings'
+  | 'settings'
   | 'web_sources'
-  | 'meetings' 
-  | 'documents' 
-  | 'videos' 
-  | 'ai_chat' 
-  | 'study_tools' 
-  | 'interview_prep'
-  | 'settings';
+  | 'documents'
+  | 'videos'
+  | 'study_tools'
+  | 'interview_prep';
 
 export interface Tenant {
   id: string;
@@ -231,14 +235,14 @@ export interface ShareLink {
   createdAt: string;
 }
 
-export type NotebookPersona = 
-  | 'default' 
-  | 'teacher' 
-  | 'technical' 
-  | 'executive' 
-  | 'beginner' 
-  | 'exam_prep' 
-  | 'research' 
+export type NotebookPersona =
+  | 'default'
+  | 'teacher'
+  | 'technical'
+  | 'executive'
+  | 'beginner'
+  | 'exam_prep'
+  | 'research'
   | 'custom';
 
 export interface NotebookMessage {
