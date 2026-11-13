@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Notebook, NoteSource, AIArtifact, SourceType } from '@/types';
+import { UniversalArtifactRenderer } from '../document/UniversalArtifactRenderer';
 
 interface MeetingIntelligenceViewProps {
   notebooks: Notebook[];
@@ -23,6 +24,7 @@ interface MeetingIntelligenceViewProps {
   onOpenCapture: (tab?: SourceType) => void;
   onGenerateTool: (toolId: string) => void;
   isGenerating?: boolean;
+  onOpenArtifact?: (artifactId: string) => void;
 }
 
 export const MeetingIntelligenceView: React.FC<MeetingIntelligenceViewProps> = ({
@@ -31,6 +33,7 @@ export const MeetingIntelligenceView: React.FC<MeetingIntelligenceViewProps> = (
   onOpenCapture,
   onGenerateTool,
   isGenerating = false,
+  onOpenArtifact,
 }) => {
   // Filter all audio and meeting sources
   const meetingSources: (NoteSource & { notebookTitle: string })[] = [];
@@ -43,7 +46,7 @@ export const MeetingIntelligenceView: React.FC<MeetingIntelligenceViewProps> = (
   });
 
   const meetingArtifacts: AIArtifact[] = (activeNotebook?.artifacts || []).filter(
-    (a) => a.artifactType === 'meeting_minutes' || a.artifactType === 'action_items'
+    (a) => ['meeting_minutes', 'action_items', 'decisions', 'audio_overview'].includes(a.artifactType)
   );
 
   return (
@@ -204,13 +207,24 @@ export const MeetingIntelligenceView: React.FC<MeetingIntelligenceViewProps> = (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
                     {art.artifactType.replace('_', ' ')}
                   </span>
-                  <span className="text-[10px] text-[var(--text-muted)]">
-                    {new Date(art.createdAt).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      {new Date(art.createdAt).toLocaleDateString()}
+                    </span>
+                    {onOpenArtifact && (
+                      <button
+                        onClick={() => onOpenArtifact(art.id)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-[var(--accent-primary)] hover:underline"
+                      >
+                        <FileText size={12} />
+                        <span>Open</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <h4 className="font-bold text-xs text-[var(--text-primary)]">{art.title}</h4>
-                <div className="p-3 rounded-lg bg-[var(--bg-input)] text-xs text-[var(--text-secondary)] max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                  {art.content?.summaryText || JSON.stringify(art.content, null, 2)}
+                <div className="p-3 rounded-lg bg-[var(--bg-input)] text-xs text-[var(--text-secondary)] max-h-56 overflow-y-auto leading-relaxed">
+                  <UniversalArtifactRenderer artifact={art} />
                 </div>
               </div>
             ))}

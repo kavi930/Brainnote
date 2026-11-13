@@ -15,6 +15,7 @@ import { IngestSourceModal } from '@/components/IngestSourceModal';
 import { BillingModal } from '@/components/BillingModal';
 import { ShareModal } from '@/components/ShareModal';
 import { ExtensionModal } from '@/components/ExtensionModal';
+import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
 import { INITIAL_TENANTS, TenantDataset } from '@/lib/mock-data';
 import { 
   Note, 
@@ -65,6 +66,7 @@ export default function BrainnoteApp() {
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
+  const [globalViewerArtifactId, setGlobalViewerArtifactId] = useState<string | null>(null);
 
   // Generation status
   const [isGeneratingChat, setIsGeneratingChat] = useState(false);
@@ -535,13 +537,22 @@ export default function BrainnoteApp() {
     setGeneratingToolId(toolId);
 
     let artifactType: AIArtifactType = 'summary';
-    if (toolId === 'meeting_minutes') artifactType = 'meeting_minutes';
+    if (toolId === 'structured_notes') artifactType = 'structured_notes';
+    else if (toolId === 'key_takeaways') artifactType = 'key_takeaways';
     else if (toolId === 'action_items') artifactType = 'action_items';
     else if (toolId === 'flashcards') artifactType = 'flashcards';
     else if (toolId === 'quiz') artifactType = 'quiz';
     else if (toolId === 'faq') artifactType = 'qa';
     else if (toolId === 'interview_prep') artifactType = 'interview_qa';
     else if (toolId === 'study_guide' || toolId === 'revision_notes') artifactType = 'study_guide';
+    else if (toolId === 'concept_map') artifactType = 'concept_map';
+    else if (toolId === 'mind_map') artifactType = 'mind_map';
+    else if (toolId === 'timeline') artifactType = 'timeline';
+    else if (toolId === 'compare_sources') artifactType = 'compare_sources';
+    else if (toolId === 'glossary') artifactType = 'glossary';
+    else if (toolId === 'meeting_minutes') artifactType = 'meeting_minutes';
+    else if (toolId === 'decisions') artifactType = 'decisions';
+    else if (toolId === 'audio_overview') artifactType = 'audio_overview';
 
     const selectedSources = activeNotebook.sources.filter((s) => activeNotebook.selectedSourceIds.includes(s.id));
     const combinedTranscript = selectedSources.map((s) => s.rawTranscript || s.title).join('\n\n');
@@ -558,6 +569,7 @@ export default function BrainnoteApp() {
           tenantId: activeTenantId,
           sourceTranscript: combinedTranscript,
           question: toolId === 'faq' ? 'What are the essential concepts and FAQs from these sources?' : undefined,
+          splitOptions: true,
         }),
       });
 
@@ -565,11 +577,16 @@ export default function BrainnoteApp() {
       setIsGeneratingStudio(false);
       setGeneratingToolId(null);
 
-      if (data.success && data.artifact) {
+      if (data.success && (data.artifact || data.artifacts)) {
+        const newArtifacts: AIArtifact[] = (data.artifacts && data.artifacts.length > 0)
+          ? data.artifacts
+          : [data.artifact];
+
         const activeNote = activeNotebook.savedNotes[0];
+        const newIds = new Set(newArtifacts.map((a: AIArtifact) => a.id));
         const updatedArtifacts = [
-          data.artifact,
-          ...(activeNote.aiArtifacts || []).filter((a) => a.id !== data.artifact.id),
+          ...newArtifacts,
+          ...(activeNote.aiArtifacts || []).filter((a) => !newIds.has(a.id)),
         ];
 
         const updatedNote: Note = {
@@ -590,7 +607,14 @@ export default function BrainnoteApp() {
           },
         }));
 
-        showToast(`Generated ${toolId.replace('_', ' ')} successfully!`);
+        // AUTOMATIC DOCUMENT OPENING AFTER GENERATION (Requirement 2)
+        setGlobalViewerArtifactId(newArtifacts[0].id);
+
+        showToast(
+          newArtifacts.length > 1
+            ? `Generated ${newArtifacts.length} separate documents!`
+            : `Generated ${newArtifacts[0].title}`
+        );
       } else {
         showToast(data.error || 'Studio generation failed.');
       }
@@ -599,6 +623,85 @@ export default function BrainnoteApp() {
       setGeneratingToolId(null);
       showToast('Error generating studio artifact.');
     }
+  };
+
+  // Save edits to artifact
+  const handleSaveArtifact = (updatedArtifact: AIArtifact) => {
+    if (!activeNotebook) return;
+    const activeNote = activeNotebook.savedNotes[0];
+    const updatedArtifacts = (activeNote.aiArtifacts || []).map((a) =>
+      a.id === updatedArtifact.id ? updatedArtifact : a
+    );
+
+    const updatedNote: Note = {
+      ...activeNote,
+      aiArtifacts: updatedArtifacts,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setDatasets((prev) => ({
+      ...prev,
+      [activeTenantId]: {
+        ...prev[activeTenantId],
+        notes: prev[activeTenantId].notes.map((n) => (n.id === updatedNote.id ? updatedNote : n)),
+      },
+    }));
+
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: activeTenantId,
+        note: updatedNote,
+      }),
+    }).catch(() => {});
+
+    showToast('Saved document edits.');
+  };
+
+  // Save artifact as standalone note in My Notes
+  const handleSaveArtifactAsNote = (title: string, markdown: string) => {
+    const newNoteId = `note-${Date.now()}`;
+    const newNote: Note = {
+      id: newNoteId,
+      tenantId: activeTenantId,
+      userId: currentDataset.user.id,
+      title: title || 'Saved Artifact Note',
+      content: markdown,
+      isPinned: false,
+      isArchived: false,
+      tags: [{ id: 'tag-artifact', tenantId: activeTenantId, name: 'AI Artifact', color: 'indigo' }],
+      sources: [],
+      aiArtifacts: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          notes: [newNote, ...current.notes],
+          usage: {
+            ...current.usage,
+            notesCount: current.notes.length + 1,
+          },
+        },
+      };
+    });
+
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: activeTenantId,
+        note: newNote,
+      }),
+    }).catch(() => {});
+
+    showToast(`Created note: "${title}"`);
   };
 
   // Delete Artifact
@@ -892,8 +995,14 @@ export default function BrainnoteApp() {
               activeNotebookTitle={activeNotebook?.title || 'Notebook'}
               onGenerateTool={handleGenerateStudioTool}
               onDeleteArtifact={handleDeleteArtifact}
+              onSaveArtifact={handleSaveArtifact}
+              onSaveAsNote={handleSaveArtifactAsNote}
+              onShowToast={showToast}
               isGenerating={isGeneratingStudio}
               generatingToolId={generatingToolId}
+              viewerArtifactId={globalViewerArtifactId}
+              onCloseViewer={() => setGlobalViewerArtifactId(null)}
+              onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
             />
           )}
 
@@ -904,6 +1013,7 @@ export default function BrainnoteApp() {
               onSelectNotebook={setActiveNotebookId}
               onGenerateTool={handleGenerateStudioTool}
               isGenerating={isGeneratingStudio}
+              onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
             />
           )}
 
@@ -914,6 +1024,7 @@ export default function BrainnoteApp() {
               onOpenCapture={handleOpenAddSource}
               onGenerateTool={handleGenerateStudioTool}
               isGenerating={isGeneratingStudio}
+              onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
             />
           )}
         </main>
@@ -951,6 +1062,20 @@ export default function BrainnoteApp() {
         isOpen={isExtensionModalOpen}
         onClose={() => setIsExtensionModalOpen(false)}
       />
+
+      {/* MODAL 5: Universal Document Viewer Modal (Opens automatically on generation or user click) */}
+      {globalViewerArtifactId && activeNotebook && (
+        <DocumentViewerModal
+          isOpen={Boolean(globalViewerArtifactId)}
+          onClose={() => setGlobalViewerArtifactId(null)}
+          artifacts={activeNotebook.artifacts || []}
+          initialArtifactId={globalViewerArtifactId}
+          notebookTitle={activeNotebook.title}
+          onSaveArtifact={handleSaveArtifact}
+          onSaveAsNote={handleSaveArtifactAsNote}
+          onShowToast={showToast}
+        />
+      )}
 
       {/* TOAST NOTIFICATION */}
       {toastMessage && (

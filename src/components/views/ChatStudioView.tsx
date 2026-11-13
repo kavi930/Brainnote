@@ -24,6 +24,7 @@ import {
   Globe
 } from 'lucide-react';
 import { NotebookMessage, NoteSource, NotebookPersona, CitationAnchor, SourceType } from '@/types';
+import { RichDocumentContent } from '../document/RichDocumentContent';
 
 interface ChatStudioViewProps {
   notebookTitle: string;
@@ -296,7 +297,11 @@ export const ChatStudioView: React.FC<ChatStudioViewProps> = ({
                       : 'bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-tl-none space-y-3'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  {isUser ? (
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  ) : (
+                    <RichDocumentContent content={msg.content} />
+                  )}
 
                   {/* Citations list for AI message */}
                   {!isUser && msg.citations && msg.citations.length > 0 && (

@@ -17,9 +17,13 @@ import {
   CheckSquare, 
   X, 
   BookMarked,
-  Award
+  Award,
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 import { Notebook, AIArtifact, Flashcard, QuizQuestion, InterviewQuestion } from '@/types';
+import { RichDocumentContent } from '../document/RichDocumentContent';
+import { UniversalArtifactRenderer } from '../document/UniversalArtifactRenderer';
 
 interface LearningReviewViewProps {
   notebooks: Notebook[];
@@ -27,6 +31,7 @@ interface LearningReviewViewProps {
   onSelectNotebook: (id: string) => void;
   onGenerateTool: (toolId: string) => void;
   isGenerating?: boolean;
+  onOpenArtifact?: (artifactId: string) => void;
 }
 
 export type LearningSubTab = 'flashcards' | 'quiz' | 'interview' | 'study_guides';
@@ -37,6 +42,7 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
   onSelectNotebook,
   onGenerateTool,
   isGenerating = false,
+  onOpenArtifact,
 }) => {
   const [activeTab, setActiveTab] = useState<LearningSubTab>('flashcards');
 
@@ -265,10 +271,21 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
             <span className="font-semibold text-[var(--text-primary)]">
               Card {activeCardIndex + 1} of {flashcards.length}
             </span>
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-              <CheckCircle2 size={13} />
-              Mastered: {Object.values(masteredCards).filter(Boolean).length} of {flashcards.length}
-            </span>
+            <div className="flex items-center gap-3">
+              {flashcardArtifact && onOpenArtifact && (
+                <button
+                  onClick={() => onOpenArtifact(flashcardArtifact.id)}
+                  className="flex items-center gap-1 text-[var(--accent-primary)] hover:underline font-semibold"
+                >
+                  <FileText size={13} />
+                  <span>Open Document</span>
+                </button>
+              )}
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                <CheckCircle2 size={13} />
+                Mastered: {Object.values(masteredCards).filter(Boolean).length} of {flashcards.length}
+              </span>
+            </div>
           </div>
 
           {/* Interactive 3D Flip Card */}
@@ -350,9 +367,20 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
             <span className="font-semibold text-[var(--text-primary)]">
               Interactive Self-Assessment
             </span>
-            <span>
-              {Object.keys(quizSelections).length} of {quizQuestions.length} answered
-            </span>
+            <div className="flex items-center gap-3">
+              {quizArtifact && onOpenArtifact && (
+                <button
+                  onClick={() => onOpenArtifact(quizArtifact.id)}
+                  className="flex items-center gap-1 text-[var(--accent-primary)] hover:underline font-semibold"
+                >
+                  <FileText size={13} />
+                  <span>Open Document</span>
+                </button>
+              )}
+              <span>
+                {Object.keys(quizSelections).length} of {quizQuestions.length} answered
+              </span>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -451,14 +479,25 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
               ))}
             </div>
 
-            <button
-              onClick={() => onGenerateTool('interview_prep')}
-              disabled={isGenerating}
-              className="flex items-center gap-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline"
-            >
-              <Sparkles size={13} />
-              <span>Generate Questions with AI</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {interviewArtifact && onOpenArtifact && (
+                <button
+                  onClick={() => onOpenArtifact(interviewArtifact.id)}
+                  className="flex items-center gap-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline"
+                >
+                  <FileText size={13} />
+                  <span>Open Document</span>
+                </button>
+              )}
+              <button
+                onClick={() => onGenerateTool('interview_prep')}
+                disabled={isGenerating}
+                className="flex items-center gap-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline"
+              >
+                <Sparkles size={13} />
+                <span>Generate Questions with AI</span>
+              </button>
+            </div>
           </div>
 
           {/* Question List */}
@@ -521,7 +560,7 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
                         <div className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1">
                           Model Answer
                         </div>
-                        <p>{q.answer}</p>
+                        <RichDocumentContent content={q.answer} />
                       </div>
 
                       {q.keyCriteria && q.keyCriteria.length > 0 && (
@@ -569,22 +608,29 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
                 className="p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-sm space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-[var(--text-primary)]">{art.title}</h4>
-                  <span className="text-[10px] text-[var(--text-muted)]">
-                    {new Date(art.createdAt).toLocaleDateString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
+                      Study Guide
+                    </span>
+                    <h4 className="font-bold text-sm text-[var(--text-primary)]">{art.title}</h4>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      {new Date(art.createdAt).toLocaleDateString()}
+                    </span>
+                    {onOpenArtifact && (
+                      <button
+                        onClick={() => onOpenArtifact(art.id)}
+                        className="flex items-center gap-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline"
+                      >
+                        <FileText size={13} />
+                        <span>Open Document</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="p-4 rounded-lg bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-2 max-h-72 overflow-y-auto">
-                  {art.content?.studyGuide?.topics ? (
-                    art.content.studyGuide.topics.map((t, idx) => (
-                      <div key={idx} className="pb-2 border-b border-[var(--border-subtle)] last:border-b-0">
-                        <div className="font-semibold text-[var(--text-primary)] mb-0.5">{t.title}</div>
-                        <div>{t.explanation}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="whitespace-pre-wrap">{JSON.stringify(art.content, null, 2)}</div>
-                  )}
+                <div className="p-4 rounded-lg bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-2 max-h-80 overflow-y-auto">
+                  <UniversalArtifactRenderer artifact={art} />
                 </div>
               </div>
             ))

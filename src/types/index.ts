@@ -10,6 +10,8 @@ export type SourceProcessingStatus = 'pending' | 'processing' | 'completed' | 'f
 
 export type AIArtifactType =
   | 'summary'
+  | 'structured_notes'
+  | 'key_takeaways'
   | 'meeting_minutes'
   | 'action_items'
   | 'study_guide'
@@ -17,7 +19,14 @@ export type AIArtifactType =
   | 'quiz'
   | 'qa'
   | 'interview_qa'
-  | 'writing_assist';
+  | 'writing_assist'
+  | 'concept_map'
+  | 'mind_map'
+  | 'timeline'
+  | 'glossary'
+  | 'compare_sources'
+  | 'decisions'
+  | 'audio_overview';
 
 export type PrimaryNavSection =
   | 'home'
@@ -193,6 +202,26 @@ export interface AIArtifact {
       questions: InterviewQuestion[];
     };
     questions?: InterviewQuestion[] | QuizQuestion[];
+    formattedMarkdown?: string;
+    richText?: string;
+    conceptMap?: {
+      centralConcept: string;
+      nodes: { id: string; label: string; category?: string; description?: string }[];
+      relationships: { from: string; to: string; relationship: string }[];
+    };
+    mindMap?: {
+      rootTopic: string;
+      branches: { topic: string; subtopics: string[] }[];
+    };
+    timeline?: {
+      milestones: { phase: string; title: string; description: string; timestamp?: string }[];
+    };
+    comparison?: {
+      dimensions: string[];
+      sourcesComparison: { sourceTitle: string; points: Record<string, string> }[];
+      consensusPoints: string[];
+      divergencePoints: string[];
+    };
   };
   modelUsed: string;
   tokensConsumed: number;

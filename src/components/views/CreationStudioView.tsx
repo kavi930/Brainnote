@@ -23,9 +23,12 @@ import {
   X, 
   BookMarked,
   ChevronRight,
-  Share2
+  Share2,
+  ExternalLink,
+  Plus
 } from 'lucide-react';
 import { AIArtifact, NoteSource, AIArtifactType } from '@/types';
+import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
 
 interface CreationStudioViewProps {
   artifacts: AIArtifact[];
@@ -34,8 +37,14 @@ interface CreationStudioViewProps {
   activeNotebookTitle: string;
   onGenerateTool: (toolId: string) => void;
   onDeleteArtifact?: (artifactId: string) => void;
+  onSaveArtifact?: (artifact: AIArtifact) => void;
+  onSaveAsNote?: (title: string, content: string) => void;
+  onShowToast?: (msg: string) => void;
   isGenerating?: boolean;
   generatingToolId?: string | null;
+  viewerArtifactId?: string | null;
+  onCloseViewer?: () => void;
+  onOpenArtifact?: (artifactId: string) => void;
 }
 
 interface ToolCategory {
@@ -68,7 +77,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'structured_notes',
-        artifactType: 'summary',
+        artifactType: 'structured_notes',
         title: 'Structured Notes',
         description: 'Hierarchical breakdown arranged logically by topic and section.',
         icon: <ListOrdered size={18} className="text-cyan-500" />,
@@ -76,7 +85,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'key_takeaways',
-        artifactType: 'summary',
+        artifactType: 'key_takeaways',
         title: 'Key Takeaways',
         description: 'High-signal bullet points engineered for fast retention.',
         icon: <CheckSquare size={18} className="text-emerald-500" />,
@@ -154,7 +163,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     tools: [
       {
         id: 'compare_sources',
-        artifactType: 'summary',
+        artifactType: 'compare_sources',
         title: 'Compare Sources',
         description: 'Analyze points of consensus and contradiction across sources.',
         icon: <GitCompare size={18} className="text-blue-500" />,
@@ -162,7 +171,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'mind_map',
-        artifactType: 'study_guide',
+        artifactType: 'mind_map',
         title: 'Mind Map Blueprint',
         description: 'Hierarchical node outline for spatial memory visualization.',
         icon: <Network size={18} className="text-fuchsia-500" />,
@@ -170,7 +179,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'concept_map',
-        artifactType: 'study_guide',
+        artifactType: 'concept_map',
         title: 'Concept Map',
         description: 'Relational concept connections and structural dependencies.',
         icon: <Network size={18} className="text-emerald-500" />,
@@ -178,7 +187,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'timeline',
-        artifactType: 'summary',
+        artifactType: 'timeline',
         title: 'Timeline & Milestones',
         description: 'Chronological progression of historical or technical events.',
         icon: <Clock size={18} className="text-amber-500" />,
@@ -186,7 +195,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'glossary',
-        artifactType: 'study_guide',
+        artifactType: 'glossary',
         title: 'Domain Glossary',
         description: 'Alphabetical reference guide of key terms and abbreviations.',
         icon: <BookOpen size={18} className="text-cyan-500" />,
@@ -209,7 +218,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'decisions',
-        artifactType: 'meeting_minutes',
+        artifactType: 'decisions',
         title: 'Key Decisions Log',
         description: 'Explicit log of agreed architecture, design, and roadmap choices.',
         icon: <CheckSquare size={18} className="text-emerald-500" />,
@@ -217,7 +226,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         id: 'audio_overview',
-        artifactType: 'summary',
+        artifactType: 'audio_overview',
         title: 'Audio Overview Narrative',
         description: 'Engaging, conversational deep-dive narrative script of sources.',
         icon: <Headphones size={18} className="text-rose-500" />,
@@ -234,24 +243,49 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
   activeNotebookTitle,
   onGenerateTool,
   onDeleteArtifact,
+  onSaveArtifact,
+  onSaveAsNote,
+  onShowToast,
   isGenerating = false,
   generatingToolId = null,
+  viewerArtifactId = null,
+  onCloseViewer,
+  onOpenArtifact,
 }) => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [selectedArtifact, setSelectedArtifact] = useState<AIArtifact | null>(null);
+  const [activeViewerId, setActiveViewerId] = useState<string | null>(viewerArtifactId);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleOpenArtifact = (id: string) => {
+    if (onOpenArtifact) {
+      onOpenArtifact(id);
+    } else {
+      setActiveViewerId(id);
+    }
+  };
+
+  // Sync when viewerArtifactId changes from parent
+  React.useEffect(() => {
+    if (viewerArtifactId) {
+      setActiveViewerId(viewerArtifactId);
+    }
+  }, [viewerArtifactId]);
 
   const selectedCount = selectedSourceIds.length;
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    if (onShowToast) onShowToast('Copied content to clipboard');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const filteredCategories = activeCategory === 'all'
     ? TOOL_CATEGORIES
     : TOOL_CATEGORIES.filter((c) => c.id === activeCategory);
+
+  // Recent generated options (cluster of latest generated documents)
+  const recentArtifacts = artifacts.slice(0, 4);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
@@ -265,7 +299,7 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
             </h2>
           </div>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Notebook: <span className="font-semibold text-[var(--text-primary)]">{activeNotebookTitle}</span>
+            Active Notebook: <span className="font-semibold text-[var(--text-primary)]">{activeNotebookTitle}</span>
           </p>
         </div>
 
@@ -275,13 +309,69 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
           }`}>
-            {selectedCount > 0 ? `${selectedCount} sources selected for synthesis` : '0 sources selected'}
+            {selectedCount > 0 ? `${selectedCount} sources selected for grounding` : '0 sources selected (Check sources in library)'}
           </span>
         </div>
       </div>
 
-      {/* 2. Category Tab Filter Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+      {/* 2. RESULTS PANEL: Individual Document Cards for Generated Options (Requirement 3) */}
+      {recentArtifacts.length > 0 && (
+        <div className="p-4 rounded-2xl border-2 border-[var(--accent-primary)]/20 bg-gradient-to-r from-[var(--bg-panel)] via-[var(--bg-panel)] to-[var(--accent-primary-light)]/20 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text-primary)]">
+                Generated Document Options ({recentArtifacts.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              Each option is stored as an independent document
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {recentArtifacts.map((art, idx) => (
+              <div
+                key={art.id}
+                onClick={() => handleOpenArtifact(art.id)}
+                className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--accent-primary)] hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
+                      Option {idx + 1}: {art.artifactType.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      {new Date(art.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+
+                  <h4 className="font-bold text-xs text-[var(--text-primary)] line-clamp-1 group-hover:text-[var(--accent-primary)] transition-colors">
+                    {art.title}
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 mt-1">
+                    {art.content?.summaryText ||
+                      (art.content?.flashcards ? `${art.content.flashcards.length} cards` : '') ||
+                      (art.content?.quiz ? `${art.content.quiz.questions.length} quiz questions` : '') ||
+                      'Formatted document ready for inspection & export.'}
+                  </p>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--accent-primary)]">
+                  <span className="flex items-center gap-1 group-hover:underline">
+                    <Eye size={12} />
+                    <span>Open Document</span>
+                  </span>
+                  <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Category Tab Filter Bar */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs select-none">
         <button
           onClick={() => setActiveCategory('all')}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${
@@ -307,58 +397,71 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
         ))}
       </div>
 
-      {/* 3. Tool Cards Grid Section */}
-      <div className="space-y-6">
+      {/* 4. Categorized Tool Cards Grid */}
+      <div className="space-y-8">
         {filteredCategories.map((category) => (
           <div key={category.id} className="space-y-3">
             <div>
-              <h3 className="font-bold text-sm text-[var(--text-primary)]">{category.title}</h3>
-              <p className="text-xs text-[var(--text-muted)]">{category.description}</p>
+              <h3 className="font-bold text-sm text-[var(--text-primary)]">
+                {category.title}
+              </h3>
+              <p className="text-xs text-[var(--text-muted)]">
+                {category.description}
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {category.tools.map((tool) => {
                 const isThisToolGenerating = isGenerating && generatingToolId === tool.id;
+
                 return (
                   <div
                     key={tool.id}
-                    className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--accent-primary)] hover:shadow-sm transition-all flex flex-col justify-between text-left group"
+                    className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-medium)] transition-all flex flex-col justify-between shadow-xs hover:shadow-sm"
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="p-2 rounded-lg bg-[var(--bg-input)] border border-[var(--border-subtle)] group-hover:scale-105 transition-transform">
-                          {tool.icon}
-                        </div>
-                        <span className="text-[10px] font-medium text-[var(--text-muted)]">
-                          ~{tool.tokensEst} tokens
-                        </span>
+                      <div className="w-9 h-9 rounded-lg bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-center mb-3">
+                        {tool.icon}
                       </div>
 
                       <h4 className="font-bold text-xs text-[var(--text-primary)] mb-1">
                         {tool.title}
                       </h4>
-                      <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed mb-3">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">
                         {tool.description}
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => onGenerateTool(tool.id)}
-                      disabled={isGenerating || selectedCount === 0}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold bg-[var(--accent-primary-light)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white disabled:opacity-40 transition-colors"
-                    >
-                      {isThisToolGenerating ? (
-                        <>
-                          <Sparkles size={13} className="animate-spin" />
-                          <span>Generating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={13} />
-                          <span>Generate</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                      <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                        ~{tool.tokensEst} tokens
+                      </span>
+
+                      <button
+                        onClick={() => onGenerateTool(tool.id)}
+                        disabled={isGenerating || selectedCount === 0}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          isThisToolGenerating
+                            ? 'bg-[var(--accent-primary)] text-white opacity-80 cursor-wait'
+                            : selectedCount === 0
+                            ? 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] cursor-not-allowed opacity-60'
+                            : 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xs cursor-pointer'
+                        }`}
+                        title={selectedCount === 0 ? 'Select at least one source first' : `Generate ${tool.title}`}
+                      >
+                        {isThisToolGenerating ? (
+                          <>
+                            <Sparkles size={13} className="animate-spin" />
+                            <span>Generating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={13} />
+                            <span>Generate</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -367,15 +470,17 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
         ))}
       </div>
 
-      {/* 4. Saved Artifacts Section */}
-      <div className="pt-4 border-t border-[var(--border-subtle)] space-y-3">
+      {/* 5. All Saved Artifacts Section */}
+      <div className="pt-6 border-t border-[var(--border-subtle)] space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-sm text-[var(--text-primary)]">
-            Saved Artifacts in this Notebook ({artifacts.length})
-          </h3>
-          <span className="text-xs text-[var(--text-muted)]">
-            Stored in PostgreSQL with full Markdown export
-          </span>
+          <div>
+            <h3 className="font-bold text-sm text-[var(--text-primary)]">
+              All Saved Documents & Artifacts ({artifacts.length})
+            </h3>
+            <p className="text-xs text-[var(--text-muted)]">
+              Persisted in PostgreSQL with rich document viewing, Markdown, and TXT export.
+            </p>
+          </div>
         </div>
 
         {artifacts.length > 0 ? (
@@ -383,14 +488,14 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
             {artifacts.map((art) => (
               <div
                 key={art.id}
-                className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-sm hover:border-[var(--border-medium)] transition-all flex flex-col justify-between"
+                className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-xs hover:border-[var(--border-medium)] transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
                       {art.artifactType.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">
                       {new Date(art.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -405,11 +510,11 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
 
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
                   <button
-                    onClick={() => setSelectedArtifact(art)}
+                    onClick={() => handleOpenArtifact(art.id)}
                     className="flex items-center gap-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline"
                   >
                     <Eye size={13} />
-                    <span>View & Export</span>
+                    <span>View Document</span>
                   </button>
 
                   {onDeleteArtifact && (
@@ -427,133 +532,26 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
           </div>
         ) : (
           <div className="text-center py-8 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-panel)] text-xs text-[var(--text-muted)]">
-            No artifacts generated in this notebook yet. Choose a tool above to synthesize notes or learning materials.
+            No artifacts generated in this notebook yet. Select sources and click Generate on any tool above.
           </div>
         )}
       </div>
 
-      {/* Artifact Full Preview Modal */}
-      {selectedArtifact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
-            <div className="p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-panel-header)] flex items-center justify-between">
-              <div>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
-                  {selectedArtifact.artifactType.replace('_', ' ')}
-                </span>
-                <h3 className="font-bold text-sm text-[var(--text-primary)] mt-1">
-                  {selectedArtifact.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedArtifact(null)}
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto flex-1 text-xs text-[var(--text-primary)] leading-relaxed space-y-3">
-              {/* Content rendering based on artifact type */}
-              {selectedArtifact.content?.summaryText && (
-                <div className="whitespace-pre-wrap">{selectedArtifact.content.summaryText}</div>
-              )}
-              {selectedArtifact.content?.studyGuide?.topics && (
-                <div className="space-y-3">
-                  {selectedArtifact.content.studyGuide.topics.map((t, idx) => (
-                    <div key={idx} className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)]">
-                      <h4 className="font-bold text-xs text-[var(--text-primary)] mb-1">{t.title}</h4>
-                      <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{t.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedArtifact.content?.actionItems && (
-                <div className="space-y-2">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                    Action Items ({selectedArtifact.content.actionItems.length})
-                  </h4>
-                  {selectedArtifact.content.actionItems.map((item, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-start gap-2">
-                      <CheckSquare size={14} className="text-[var(--accent-primary)] mt-0.5" />
-                      <div>
-                        <div className="font-semibold text-xs text-[var(--text-primary)]">{item.task}</div>
-                        {item.assignee && (
-                          <div className="text-[10px] text-[var(--text-muted)]">Owner: {item.assignee}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedArtifact.content?.flashcards && (
-                <div className="space-y-2">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                    Flashcard Questions ({selectedArtifact.content.flashcards.length})
-                  </h4>
-                  {selectedArtifact.content.flashcards.map((fc, idx) => (
-                    <div key={idx} className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)]">
-                      <div className="font-bold text-xs text-[var(--text-primary)]">Q: {fc.front}</div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-1">A: {fc.back}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedArtifact.content?.quiz && (
-                <div className="space-y-3">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                    Quiz Questions ({selectedArtifact.content.quiz.questions.length})
-                  </h4>
-                  {selectedArtifact.content.quiz.questions.map((q, idx) => (
-                    <div key={idx} className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-1.5">
-                      <div className="font-bold text-xs text-[var(--text-primary)]">{idx + 1}. {q.question}</div>
-                      <div className="space-y-1 pl-2">
-                        {q.options.map((opt, oIdx) => (
-                          <div key={oIdx} className={`text-[11px] ${oIdx === q.correctOptionIndex ? 'font-bold text-emerald-600' : 'text-[var(--text-secondary)]'}`}>
-                            {String.fromCharCode(65 + oIdx)}. {opt} {oIdx === q.correctOptionIndex && '(Correct)'}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-muted)] italic pt-1 border-t border-[var(--border-subtle)]">
-                        Explanation: {q.explanation}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!selectedArtifact.content?.summaryText && 
-               !selectedArtifact.content?.studyGuide?.topics && 
-               !selectedArtifact.content?.actionItems && 
-               !selectedArtifact.content?.flashcards && 
-               !selectedArtifact.content?.quiz && (
-                <pre className="p-3 rounded-lg bg-[var(--bg-input)] font-mono text-[11px] overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(selectedArtifact.content, null, 2)}
-                </pre>
-              )}
-            </div>
-
-            <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-panel-header)] flex items-center justify-between">
-              <button
-                onClick={() => {
-                  const contentStr = selectedArtifact.content?.summaryText || 
-                                     JSON.stringify(selectedArtifact.content, null, 2);
-                  handleCopy(selectedArtifact.id, contentStr);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                {copiedId === selectedArtifact.id ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                <span>{copiedId === selectedArtifact.id ? 'Copied Markdown' : 'Copy Markdown'}</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedArtifact(null)}
-                className="px-4 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* 6. Universal Professional Document Viewer Modal (Automatic Opening & Option Tabs) */}
+      {!onOpenArtifact && activeViewerId && (
+        <DocumentViewerModal
+          isOpen={Boolean(activeViewerId)}
+          onClose={() => {
+            setActiveViewerId(null);
+            if (onCloseViewer) onCloseViewer();
+          }}
+          artifacts={artifacts}
+          initialArtifactId={activeViewerId}
+          notebookTitle={activeNotebookTitle}
+          onSaveArtifact={onSaveArtifact}
+          onSaveAsNote={onSaveAsNote}
+          onShowToast={onShowToast}
+        />
       )}
     </div>
   );

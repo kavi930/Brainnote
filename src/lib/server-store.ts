@@ -183,10 +183,12 @@ export function updateNoteArtifact(
   const note = store.notes.find((n) => n.id === noteId);
   if (!note) return false;
 
-  note.aiArtifacts = [
-    artifact,
-    ...(note.aiArtifacts || []).filter((a) => a.artifactType !== artifact.artifactType),
-  ];
+  const existingIdx = (note.aiArtifacts || []).findIndex((a) => a.id === artifact.id);
+  if (existingIdx >= 0) {
+    note.aiArtifacts[existingIdx] = artifact;
+  } else {
+    note.aiArtifacts = [artifact, ...(note.aiArtifacts || [])];
+  }
   note.updatedAt = new Date().toISOString();
 
   if (isDatabaseConfigured()) {

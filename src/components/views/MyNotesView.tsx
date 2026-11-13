@@ -1,43 +1,43 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Pin, 
-  Trash2, 
-  Copy, 
-  Sparkles, 
-  Bold, 
-  Italic, 
-  Underline, 
-  Heading1, 
-  Heading2, 
-  Heading3, 
-  List, 
-  ListOrdered, 
-  CheckSquare, 
-  Code, 
-  Link as LinkIcon, 
-  Undo, 
-  Redo, 
-  Download, 
-  Printer, 
-  Share2, 
-  BookMarked, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  ChevronRight, 
-  ChevronLeft, 
-  SlidersHorizontal, 
-  Filter, 
-  Folder as FolderIcon, 
-  Tag as TagIcon, 
-  ExternalLink, 
-  HelpCircle, 
-  MessageSquare, 
-  GraduationCap, 
+import {
+  Plus,
+  Search,
+  Pin,
+  Trash2,
+  Copy,
+  Sparkles,
+  Bold,
+  Italic,
+  Underline,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  CheckSquare,
+  Code,
+  Link as LinkIcon,
+  Undo,
+  Redo,
+  Download,
+  Printer,
+  Share2,
+  BookMarked,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  ChevronRight,
+  ChevronLeft,
+  SlidersHorizontal,
+  Filter,
+  Folder as FolderIcon,
+  Tag as TagIcon,
+  ExternalLink,
+  HelpCircle,
+  MessageSquare,
+  GraduationCap,
   X,
   FileText,
   FileCode,
@@ -92,7 +92,7 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
       setMobileTab('editor');
     }
   }, [initialSelectedNoteId, notes]);
-  
+
   // Note Search & Filtering
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<string>('f-all');
@@ -536,31 +536,28 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
       <div className="flex md:hidden items-center justify-around border-b border-[var(--border-subtle)] bg-[var(--bg-panel-header)] px-2 py-1.5 shrink-0 z-10 text-xs">
         <button
           onClick={() => setMobileTab('list')}
-          className={`py-1.5 px-3 rounded-lg font-semibold ${
-            mobileTab === 'list'
-              ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
-              : 'text-[var(--text-muted)]'
-          }`}
+          className={`py-1.5 px-3 rounded-lg font-semibold ${mobileTab === 'list'
+            ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+            : 'text-[var(--text-muted)]'
+            }`}
         >
           Notes ({filteredNotes.length})
         </button>
         <button
           onClick={() => setMobileTab('editor')}
-          className={`py-1.5 px-3 rounded-lg font-semibold ${
-            mobileTab === 'editor'
-              ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
-              : 'text-[var(--text-muted)]'
-          }`}
+          className={`py-1.5 px-3 rounded-lg font-semibold ${mobileTab === 'editor'
+            ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+            : 'text-[var(--text-muted)]'
+            }`}
         >
           Editor
         </button>
         <button
           onClick={() => setMobileTab('ai')}
-          className={`py-1.5 px-3 rounded-lg font-semibold ${
-            mobileTab === 'ai'
-              ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
-              : 'text-[var(--text-muted)]'
-          }`}
+          className={`py-1.5 px-3 rounded-lg font-semibold ${mobileTab === 'ai'
+            ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+            : 'text-[var(--text-muted)]'
+            }`}
         >
           AI Assistant
         </button>
@@ -571,9 +568,8 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
             COLUMN 1: NOTES LIST & NAVIGATOR
            ========================================================================= */}
         <aside
-          className={`w-full md:w-72 lg:w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-col shrink-0 ${
-            mobileTab === 'list' ? 'flex' : 'hidden md:flex'
-          }`}
+          className={`w-full md:w-72 lg:w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-col shrink-0 ${mobileTab === 'list' ? 'flex' : 'hidden md:flex'
+            }`}
         >
           {/* Top Actions: New Blank Note & Search */}
           <div className="p-3 border-b border-[var(--border-subtle)] space-y-2 shrink-0 bg-[var(--bg-panel-header)]">
@@ -619,11 +615,10 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-                  className={`p-1 rounded ${
-                    showPinnedOnly
-                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
+                  className={`p-1 rounded ${showPinnedOnly
+                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
                   title={showPinnedOnly ? 'Show all notes' : 'Show pinned only'}
                 >
                   <Pin size={13} />
@@ -654,11 +649,10 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
                       setSelectedNoteId(note.id);
                       setMobileTab('editor');
                     }}
-                    className={`p-3 cursor-pointer text-left transition-colors relative group ${
-                      isSelected
-                        ? 'bg-[var(--accent-primary-light)]/40 border-l-2 border-[var(--accent-primary)]'
-                        : 'hover:bg-[var(--bg-card-hover)]'
-                    }`}
+                    className={`p-3 cursor-pointer text-left transition-colors relative group ${isSelected
+                      ? 'bg-[var(--accent-primary-light)]/40 border-l-2 border-[var(--accent-primary)]'
+                      : 'hover:bg-[var(--bg-card-hover)]'
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-1 mb-1">
                       <h4 className="font-semibold text-xs text-[var(--text-primary)] truncate flex-1">
@@ -733,9 +727,8 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
             COLUMN 2: MAIN WRITING EDITOR
            ========================================================================= */}
         <main
-          className={`flex-1 h-full flex flex-col bg-[var(--bg-panel)] overflow-hidden ${
-            mobileTab === 'editor' ? 'flex' : 'hidden md:flex'
-          }`}
+          className={`flex-1 h-full flex flex-col bg-[var(--bg-panel)] overflow-hidden ${mobileTab === 'editor' ? 'flex' : 'hidden md:flex'
+            }`}
         >
           {currentNote ? (
             <>
@@ -772,11 +765,10 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setIsAIAssistantOpen(!isAIAssistantOpen)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                      isAIAssistantOpen
-                        ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                        : 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white'
-                    }`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${isAIAssistantOpen
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white'
+                      }`}
                     title="Toggle AI Writing Assistant"
                   >
                     <Sparkles size={13} />
@@ -981,9 +973,8 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
            ========================================================================= */}
         {isAIAssistantOpen && (
           <aside
-            className={`w-full md:w-80 lg:w-96 h-full border-l border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-col shrink-0 ${
-              mobileTab === 'ai' ? 'flex' : 'hidden md:flex'
-            }`}
+            className={`w-full md:w-80 lg:w-96 h-full border-l border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-col shrink-0 ${mobileTab === 'ai' ? 'flex' : 'hidden md:flex'
+              }`}
           >
             {/* AI Panel Header */}
             <div className="p-3.5 border-b border-[var(--border-subtle)] bg-[var(--bg-panel-header)] flex items-center justify-between shrink-0">
