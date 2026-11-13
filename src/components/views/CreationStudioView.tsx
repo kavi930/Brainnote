@@ -1,26 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  FileText, 
-  ListOrdered, 
-  CheckSquare, 
-  Clock, 
-  BookOpen, 
-  HelpCircle, 
-  Layers, 
-  BrainCircuit, 
-  GitCompare, 
-  Network, 
-  Headphones, 
-  Briefcase, 
-  Eye, 
-  Trash2, 
-  Copy, 
-  Check, 
-  Download, 
-  X, 
+import {
+  Sparkles,
+  FileText,
+  ListOrdered,
+  CheckSquare,
+  Clock,
+  BookOpen,
+  HelpCircle,
+  Layers,
+  BrainCircuit,
+  GitCompare,
+  Network,
+  Headphones,
+  Briefcase,
+  Eye,
+  Trash2,
+  Copy,
+  Check,
+  Download,
+  X,
   BookMarked,
   ChevronRight,
   Share2,
@@ -304,11 +304,10 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-            selectedCount > 0
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedCount > 0
               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-          }`}>
+            }`}>
             {selectedCount > 0 ? `${selectedCount} sources selected for grounding` : '0 sources selected (Check sources in library)'}
           </span>
         </div>
@@ -374,11 +373,10 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs select-none">
         <button
           onClick={() => setActiveCategory('all')}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${
-            activeCategory === 'all'
+          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${activeCategory === 'all'
               ? 'bg-[var(--accent-primary)] text-white'
               : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
-          }`}
+            }`}
         >
           All Categories (18 Tools)
         </button>
@@ -386,11 +384,10 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${
-              activeCategory === cat.id
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${activeCategory === cat.id
                 ? 'bg-[var(--accent-primary)] text-white'
                 : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
-            }`}
+              }`}
           >
             {cat.title}
           </button>
@@ -440,13 +437,12 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
                       <button
                         onClick={() => onGenerateTool(tool.id)}
                         disabled={isGenerating || selectedCount === 0}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          isThisToolGenerating
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isThisToolGenerating
                             ? 'bg-[var(--accent-primary)] text-white opacity-80 cursor-wait'
                             : selectedCount === 0
-                            ? 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] cursor-not-allowed opacity-60'
-                            : 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xs cursor-pointer'
-                        }`}
+                              ? 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] cursor-not-allowed opacity-60'
+                              : 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xs cursor-pointer'
+                          }`}
                         title={selectedCount === 0 ? 'Select at least one source first' : `Generate ${tool.title}`}
                       >
                         {isThisToolGenerating ? (

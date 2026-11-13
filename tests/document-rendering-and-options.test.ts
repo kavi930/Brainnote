@@ -13,7 +13,7 @@ import {
   generateAudioOverview,
   generateMeetingMinutes
 } from '../src/lib/ai-provider';
-import { updateNoteArtifact, getTenantStore, saveNoteToStore } from '../src/lib/server-store';
+import { updateNoteArtifact, deleteNoteArtifact, getTenantStore, saveNoteToStore } from '../src/lib/server-store';
 import { AIArtifact, Note } from '../src/types';
 
 describe('Document Generation & Multi-Option Pipelines', () => {
@@ -89,6 +89,7 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
       id: 'art-opt-1',
       tenantId,
       noteId,
+      userId: 'user-1',
       artifactType: 'summary',
       title: 'Option 1: Executive Summary',
       content: { summaryText: 'Executive summary content' },
@@ -101,6 +102,7 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
       id: 'art-opt-2',
       tenantId,
       noteId,
+      userId: 'user-1',
       artifactType: 'structured_notes',
       title: 'Option 2: Structured Notes',
       content: { summaryText: 'Structured notes content' },
@@ -113,6 +115,7 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
       id: 'art-opt-3',
       tenantId,
       noteId,
+      userId: 'user-1',
       artifactType: 'key_takeaways',
       title: 'Option 3: Key Takeaways',
       content: { summaryText: 'Key takeaways content' },
@@ -133,5 +136,42 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
     expect(artifactIds).toContain('art-opt-1');
     expect(artifactIds).toContain('art-opt-2');
     expect(artifactIds).toContain('art-opt-3');
+  });
+
+  it('confirms the test artifact AI Video Tools Study Deck is deleted while preserving note and sources', () => {
+    const store = getTenantStore('tenant-acme');
+    const videoNote = store.notes.find((n) => n.id === 'note-user-ai-video-tools');
+    expect(videoNote).toBeDefined();
+
+    // Verify AI Video Tools Study Deck is gone
+    const studyDeck = (videoNote?.aiArtifacts || []).find(
+      (a) => a.id === 'art-yt-study' || a.title === 'AI Video Tools Study Deck'
+    );
+    expect(studyDeck).toBeUndefined();
+
+    // Verify original YouTube source is strictly preserved
+    expect(videoNote?.sources).toBeDefined();
+    expect(videoNote?.sources?.length).toBeGreaterThan(0);
+    expect(videoNote?.sources?.[0].title).toContain('AI Video Generator');
+
+    // Verify other artifacts in note remain intact
+    const remainingArtifactTitles = (videoNote?.aiArtifacts || []).map((a) => a.title);
+    expect(remainingArtifactTitles).toContain('Executive AI Synthesis: Free AI Video Generators');
+    expect(remainingArtifactTitles).toContain('Action Items & Milestones');
+  });
+
+  it('deletes a specific artifact via deleteNoteArtifact without touching other artifacts', () => {
+    const tenantId = 'tenant-acme';
+    const noteId = 'test-multi-option-note';
+
+    const deleted = deleteNoteArtifact(tenantId, noteId, 'art-opt-2');
+    expect(deleted).toBe(true);
+
+    const store = getTenantStore(tenantId);
+    const note = store.notes.find((n) => n.id === noteId);
+    const remainingIds = (note?.aiArtifacts || []).map((a) => a.id);
+    expect(remainingIds).not.toContain('art-opt-2');
+    expect(remainingIds).toContain('art-opt-1');
+    expect(remainingIds).toContain('art-opt-3');
   });
 });

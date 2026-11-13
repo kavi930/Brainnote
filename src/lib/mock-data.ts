@@ -182,46 +182,6 @@ export const INITIAL_TENANTS: Record<string, TenantDataset> = {
             createdAt: '2026-10-27T10:06:00Z',
           },
           {
-            id: 'art-yt-study',
-            tenantId: 'tenant-acme',
-            noteId: 'note-user-ai-video-tools',
-            userId: 'user-alex',
-            artifactType: 'flashcards',
-            title: 'AI Video Tools Study Deck',
-            content: {
-              flashcards: [
-                {
-                  front: 'What are the top advantages of Kling AI and Luma Dream Machine for video creators?',
-                  back: 'They deliver fluid temporal consistency, realistic physics, and clean 1080p exports without watermarks.',
-                  hint: 'Focus on motion quality and export restrictions.',
-                },
-                {
-                  front: 'Why is Image-to-Video (I2V) preferred over Text-to-Video (T2V) for consistent characters?',
-                  back: 'Image-to-Video anchors the character facial structure, clothing, and environment from the source keyframe, preventing prompt drift across frames.',
-                  hint: 'Source reference keyframe anchoring.',
-                },
-                {
-                  front: 'How does Haiper AI support creators on a budget?',
-                  back: 'Haiper provides daily renewable free generation credits, supporting text-to-video, image animation, and video repainting.',
-                  hint: 'Daily credit system.',
-                },
-                {
-                  front: 'What core architecture enables 2026 AI video tools to simulate realistic physical motion?',
-                  back: 'Diffusion Transformers (DiTs) trained natively on spacetime latent tokens that capture optical flow, 3D physics, and continuous lighting.',
-                  hint: 'DiT spacetime architectures.',
-                },
-                {
-                  front: 'What is the recommended multi-tool workflow for creating professional watermark-free AI video?',
-                  back: '1) Generate ultra-high resolution keyframes with Midjourney/Flux, 2) Animate via Kling AI or Luma Dream Machine, 3) Enhance motion using camera direction prompts.',
-                  hint: 'Keyframe generation + motion synthesis.',
-                },
-              ],
-            },
-            modelUsed: 'Gemini 1.5 Pro',
-            tokensConsumed: 1100,
-            createdAt: '2026-10-27T10:07:00Z',
-          },
-          {
             id: 'art-yt-quiz',
             tenantId: 'tenant-acme',
             noteId: 'note-user-ai-video-tools',

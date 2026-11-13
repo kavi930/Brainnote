@@ -282,6 +282,30 @@ export async function deleteNoteFromDb(tenantId: string, noteId: string): Promis
 }
 
 /**
+ * Deletes a single AI Artifact from Supabase PostgreSQL.
+ */
+export async function deleteNoteArtifactFromDb(
+  tenantId: string,
+  noteId: string,
+  artifactId: string
+): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('ai_artifacts')
+      .delete()
+      .eq('id', artifactId)
+      .eq('tenant_id', tenantId);
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Invites a Collaborator in Supabase PostgreSQL.
  */
 export async function inviteCollaboratorInDb(

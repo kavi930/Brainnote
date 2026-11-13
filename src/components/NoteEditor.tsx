@@ -214,7 +214,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       noteId: note.id,
       userId: note.userId,
       artifactType: 'flashcards',
-      title: 'AI Video Tools Study Deck',
+      title: existing?.title || `${note.title || 'Note'} Flashcards Deck`,
       content: { flashcards: cards },
       modelUsed: existing?.modelUsed || 'Gemini 1.5 Pro',
       tokensConsumed: existing?.tokensConsumed || 1100,

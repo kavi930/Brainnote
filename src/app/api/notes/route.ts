@@ -10,6 +10,7 @@ import {
   getTenantStoreAsync,
   saveNoteToStoreAsync,
   deleteNoteFromStoreAsync,
+  deleteNoteArtifactAsync,
   clearDemoNotesFromStore,
 } from '@/lib/server-store';
 import { Note } from '@/types';
@@ -67,6 +68,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const tenantId = searchParams.get('tenantId') || 'tenant-acme';
     const noteId = searchParams.get('noteId');
+    const artifactId = searchParams.get('artifactId');
     const action = searchParams.get('action');
 
     if (action === 'clear_demo') {
@@ -79,9 +81,18 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
+    if (artifactId && noteId) {
+      const removed = await deleteNoteArtifactAsync(tenantId, noteId, artifactId);
+      return NextResponse.json({
+        success: removed,
+        deletedArtifactId: artifactId,
+        noteId,
+      });
+    }
+
     if (!noteId) {
       return NextResponse.json(
-        { error: 'noteId or action=clear_demo required' },
+        { error: 'noteId or artifactId or action=clear_demo required' },
         { status: 400 }
       );
     }

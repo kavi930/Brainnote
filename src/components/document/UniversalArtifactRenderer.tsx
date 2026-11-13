@@ -772,3 +772,4 @@ export const UniversalArtifactRenderer: React.FC<UniversalArtifactRendererProps>
     </div>
   );
 };
+

@@ -17,15 +17,15 @@ import { ShareModal } from '@/components/ShareModal';
 import { ExtensionModal } from '@/components/ExtensionModal';
 import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
 import { INITIAL_TENANTS, TenantDataset } from '@/lib/mock-data';
-import { 
-  Note, 
-  NoteSource, 
-  SourceType, 
-  AIArtifact, 
-  AIArtifactType, 
-  SubscriptionTier, 
-  Notebook, 
-  NotebookMessage, 
+import {
+  Note,
+  NoteSource,
+  SourceType,
+  AIArtifact,
+  AIArtifactType,
+  SubscriptionTier,
+  Notebook,
+  NotebookMessage,
   NotebookPersona,
   PrimaryNavSection
 } from '@/types';
@@ -152,10 +152,10 @@ export default function BrainnoteApp() {
       };
     });
   }, [
-    currentDataset.notes, 
-    selectedSourceMap, 
-    conversationsMap, 
-    personaMap, 
+    currentDataset.notes,
+    selectedSourceMap,
+    conversationsMap,
+    personaMap,
     customInstructionsMap
   ]);
 
@@ -241,7 +241,7 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: updatedNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     showToast('Source removed from notebook.');
   };
@@ -283,7 +283,7 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: newNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     setActiveNotebookId(newId);
     showToast('Created new notebook.');
@@ -369,7 +369,7 @@ export default function BrainnoteApp() {
   const handleSaveAsNote = (content: string) => {
     if (!activeNotebook) return;
     const activeNote = activeNotebook.savedNotes[0];
-    const newContent = activeNote.content 
+    const newContent = activeNote.content
       ? `${activeNote.content}\n\n---\n**Saved Note (${new Date().toLocaleTimeString()}):**\n${content}`
       : `**Saved Note (${new Date().toLocaleTimeString()}):**\n${content}`;
 
@@ -394,7 +394,7 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: updatedNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     showToast('Saved response to notebook notes!');
   };
@@ -654,7 +654,7 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: updatedNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     showToast('Saved document edits.');
   };
@@ -699,22 +699,28 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: newNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     showToast(`Created note: "${title}"`);
   };
 
   // Delete Artifact
   const handleDeleteArtifact = (artifactId: string) => {
-    if (!activeNotebook) return;
-    const activeNote = activeNotebook.savedNotes[0];
-    const updatedArtifacts = (activeNote.aiArtifacts || []).filter((a) => a.id !== artifactId);
+    const currentNotes = currentDataset.notes;
+    const targetNote = currentNotes.find((n) => (n.aiArtifacts || []).some((a) => a.id === artifactId)) || activeNotebook?.savedNotes[0];
+    if (!targetNote) return;
+
+    const updatedArtifacts = (targetNote.aiArtifacts || []).filter((a) => a.id !== artifactId);
 
     const updatedNote: Note = {
-      ...activeNote,
+      ...targetNote,
       aiArtifacts: updatedArtifacts,
       updatedAt: new Date().toISOString(),
     };
+
+    if (globalViewerArtifactId === artifactId) {
+      setGlobalViewerArtifactId(null);
+    }
 
     setDatasets((prev) => ({
       ...prev,
@@ -724,14 +730,9 @@ export default function BrainnoteApp() {
       },
     }));
 
-    fetch('/api/notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantId: activeTenantId,
-        note: updatedNote,
-      }),
-    }).catch(() => {});
+    fetch(`/api/notes?tenantId=${encodeURIComponent(activeTenantId)}&noteId=${encodeURIComponent(targetNote.id)}&artifactId=${encodeURIComponent(artifactId)}`, {
+      method: 'DELETE',
+    }).catch(() => { });
 
     showToast('Artifact deleted.');
   };
@@ -786,7 +787,7 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: updatedNote,
       }),
-    }).catch(() => {});
+    }).catch(() => { });
 
     setIsIngestModalOpen(false);
     showToast(`Added source: ${title}`);

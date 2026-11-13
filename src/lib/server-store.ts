@@ -14,6 +14,7 @@ import {
   fetchTenantStoreFromDb,
   saveNoteToDb,
   updateNoteArtifactInDb,
+  deleteNoteArtifactFromDb,
   deleteNoteFromDb,
   inviteCollaboratorInDb,
   removeCollaboratorFromDb,
@@ -28,7 +29,19 @@ declare global {
 if (!global.__BRAINNOTE_STORE__) {
   global.__BRAINNOTE_STORE__ = JSON.parse(JSON.stringify(INITIAL_TENANTS));
 } else {
-  // Clean lingering demo notes from in-memory cache
+  // Clean lingering demo notes from in-memory cache and remove deleted test artifacts
+  for (const tId in global.__BRAINNOTE_STORE__) {
+    if (global.__BRAINNOTE_STORE__[tId]?.notes) {
+      for (const note of global.__BRAINNOTE_STORE__[tId].notes) {
+        if (note.aiArtifacts) {
+          note.aiArtifacts = note.aiArtifacts.filter(
+            (a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
+          );
+        }
+      }
+    }
+  }
+
   if (global.__BRAINNOTE_STORE__['tenant-acme']) {
     global.__BRAINNOTE_STORE__['tenant-acme'].notes = global.__BRAINNOTE_STORE__['tenant-acme'].notes.filter(
       (n) => !n.id.startsWith('note-acme-')
@@ -52,8 +65,16 @@ export function getTenantStore(tenantId: string): TenantDataset {
       const existing = global.__BRAINNOTE_STORE__[tenantId].notes.find((n) => n.id === initN.id);
       if (!existing) {
         global.__BRAINNOTE_STORE__[tenantId].notes.push(JSON.parse(JSON.stringify(initN)));
-      } else if (!existing.aiArtifacts || existing.aiArtifacts.length < (initN.aiArtifacts?.length || 0)) {
-        existing.aiArtifacts = JSON.parse(JSON.stringify(initN.aiArtifacts || []));
+      } else {
+        // Filter out art-yt-study if present
+        if (existing.aiArtifacts) {
+          existing.aiArtifacts = existing.aiArtifacts.filter(
+            (a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
+          );
+        }
+        if (!existing.aiArtifacts || existing.aiArtifacts.length < (initN.aiArtifacts?.length || 0)) {
+          existing.aiArtifacts = JSON.parse(JSON.stringify(initN.aiArtifacts || []));
+        }
       }
     }
     global.__BRAINNOTE_STORE__[tenantId].usage.notesCount = global.__BRAINNOTE_STORE__[tenantId].notes.length;
@@ -212,6 +233,40 @@ export async function updateNoteArtifactAsync(
   return success;
 }
 
+export function deleteNoteArtifact(
+  tenantId: string,
+  noteId: string,
+  artifactId: string
+): boolean {
+  const store = getTenantStore(tenantId);
+  const note = store.notes.find((n) => n.id === noteId);
+  if (!note || !note.aiArtifacts) return false;
+
+  const prevLen = note.aiArtifacts.length;
+  note.aiArtifacts = note.aiArtifacts.filter((a) => a.id !== artifactId);
+  note.updatedAt = new Date().toISOString();
+
+  if (isDatabaseConfigured()) {
+    deleteNoteArtifactFromDb(tenantId, noteId, artifactId).catch((err) => {
+      console.warn('[server-store] Background delete artifact sync to Supabase failed:', err);
+    });
+  }
+
+  return note.aiArtifacts.length < prevLen;
+}
+
+export async function deleteNoteArtifactAsync(
+  tenantId: string,
+  noteId: string,
+  artifactId: string
+): Promise<boolean> {
+  const success = deleteNoteArtifact(tenantId, noteId, artifactId);
+  if (success && isDatabaseConfigured()) {
+    await deleteNoteArtifactFromDb(tenantId, noteId, artifactId);
+  }
+  return success;
+}
+
 export function deleteNoteFromStore(tenantId: string, noteId: string): boolean {
   const store = getTenantStore(tenantId);
   const prevLen = store.notes.length;
@@ -249,27 +304,27 @@ export function getCollaborators(tenantId: string): Collaborator[] {
   const store = getTenantStore(tenantId);
   if (!store.collaborators || store.collaborators.length === 0) {
     const initial = INITIAL_TENANTS[tenantId]?.collaborators;
-    store.collaborators = initial && initial.length > 0 
+    store.collaborators = initial && initial.length > 0
       ? JSON.parse(JSON.stringify(initial))
       : [
-          {
-            id: `collab-owner-${tenantId}`,
-            tenantId,
-            email: store.user.email,
-            name: `${store.user.name} (Owner)`,
-            role: 'editor',
-            status: 'active',
-            invitedAt: store.tenant.createdAt || new Date().toISOString(),
-          },
-        ];
+        {
+          id: `collab-owner-${tenantId}`,
+          tenantId,
+          email: store.user.email,
+          name: `${store.user.name} (Owner)`,
+          role: 'editor',
+          status: 'active',
+          invitedAt: store.tenant.createdAt || new Date().toISOString(),
+        },
+      ];
   }
   return store.collaborators || [];
 }
 
 export function inviteCollaborator(
-  tenantId: string, 
-  email: string, 
-  name?: string, 
+  tenantId: string,
+  email: string,
+  name?: string,
   role: 'editor' | 'viewer' = 'editor'
 ): Collaborator {
   const store = getTenantStore(tenantId);
@@ -303,9 +358,9 @@ export function inviteCollaborator(
 }
 
 export async function inviteCollaboratorAsync(
-  tenantId: string, 
-  email: string, 
-  name?: string, 
+  tenantId: string,
+  email: string,
+  name?: string,
   role: 'editor' | 'viewer' = 'editor'
 ): Promise<Collaborator> {
   const collab = inviteCollaborator(tenantId, email, name, role);
