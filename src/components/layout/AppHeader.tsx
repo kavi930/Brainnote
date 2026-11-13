@@ -26,6 +26,7 @@ interface AppHeaderProps {
   onOpenExtension: () => void;
   onOpenBilling: () => void;
   planTier: string;
+  onOpenSearchModal?: () => void;
 }
 
 const SECTION_TITLES: Record<PrimaryNavSection, { title: string; subtitle: string }> = {
@@ -56,6 +57,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenExtension,
   onOpenBilling,
   planTier,
+  onOpenSearchModal,
 }) => {
   const sectionMeta = SECTION_TITLES[currentSection] || SECTION_TITLES.home;
 
@@ -91,19 +93,34 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* RIGHT: Search Bar & Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Global Search Input */}
-        <div className="relative hidden sm:block w-44 md:w-60 lg:w-72">
+        {/* Mobile Search Trigger Button */}
+        <button
+          onClick={onOpenSearchModal}
+          className="sm:hidden p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]"
+          title="Search Workspace"
+        >
+          <Search size={15} />
+        </button>
+
+        {/* Global Search Input (Desktop) */}
+        <div 
+          onClick={onOpenSearchModal}
+          className="relative hidden sm:flex items-center w-44 md:w-60 lg:w-72 cursor-pointer group"
+        >
           <Search
             size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] pointer-events-none transition-colors"
           />
           <input
             type="text"
-            placeholder="Search sources & notes..."
+            readOnly
+            placeholder="Search sources, notes, artifacts..."
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all placeholder:text-[var(--text-faint)]"
+            className="w-full pl-8 pr-12 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] group-hover:border-[var(--accent-primary)] cursor-pointer transition-all placeholder:text-[var(--text-faint)]"
           />
+          <span className="absolute right-2 px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold text-[var(--text-muted)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            ⌘K
+          </span>
         </div>
 
         {/* Quick Note Action */}

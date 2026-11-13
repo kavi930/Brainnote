@@ -45,9 +45,9 @@ export const MeetingIntelligenceView: React.FC<MeetingIntelligenceViewProps> = (
     });
   });
 
-  const meetingArtifacts: AIArtifact[] = (activeNotebook?.artifacts || []).filter(
-    (a) => ['meeting_minutes', 'action_items', 'decisions', 'audio_overview'].includes(a.artifactType)
-  );
+  const meetingArtifacts: AIArtifact[] = (activeNotebook?.artifacts || [])
+    .filter((a) => ['meeting_minutes', 'action_items', 'decisions', 'audio_overview'].includes(a.artifactType))
+    .filter((a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck');
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full">

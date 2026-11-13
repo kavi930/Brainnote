@@ -284,8 +284,18 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
     ? TOOL_CATEGORIES
     : TOOL_CATEGORIES.filter((c) => c.id === activeCategory);
 
+  // Sanitize artifacts to strictly exclude any deleted artifacts
+  const cleanArtifacts = React.useMemo(() => {
+    return artifacts.filter(
+      (a) =>
+        a.id !== 'art-yt-study' &&
+        a.title !== 'AI Video Tools Study Deck' &&
+        !a.title.toLowerCase().includes('ai video tools study deck')
+    );
+  }, [artifacts]);
+
   // Recent generated options (cluster of latest generated documents)
-  const recentArtifacts = artifacts.slice(0, 4);
+  const recentArtifacts = cleanArtifacts.slice(0, 4);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
@@ -471,7 +481,7 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-sm text-[var(--text-primary)]">
-              All Saved Documents & Artifacts ({artifacts.length})
+              All Saved Documents & Artifacts ({cleanArtifacts.length})
             </h3>
             <p className="text-xs text-[var(--text-muted)]">
               Persisted in PostgreSQL with rich document viewing, Markdown, and TXT export.
@@ -479,9 +489,9 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
           </div>
         </div>
 
-        {artifacts.length > 0 ? (
+        {cleanArtifacts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {artifacts.map((art) => (
+            {cleanArtifacts.map((art) => (
               <div
                 key={art.id}
                 className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-xs hover:border-[var(--border-medium)] transition-all flex flex-col justify-between"

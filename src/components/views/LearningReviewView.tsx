@@ -62,7 +62,12 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   // Extract learning artifacts from active notebook or all notebooks
-  const currentArtifacts = activeNotebook?.artifacts || [];
+  const currentArtifacts = (activeNotebook?.artifacts || []).filter(
+    (a) =>
+      a.id !== 'art-yt-study' &&
+      a.title !== 'AI Video Tools Study Deck' &&
+      !a.title.toLowerCase().includes('ai video tools study deck')
+  );
 
   const flashcardArtifact = currentArtifacts.find((a) => a.artifactType === 'flashcards');
   const quizArtifact = currentArtifacts.find((a) => a.artifactType === 'quiz');

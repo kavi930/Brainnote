@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  Pin, 
-  ExternalLink, 
-  CheckSquare, 
-  Square, 
-  FileText, 
-  MessageSquare, 
-  ListChecks, 
-  Layers, 
-  GraduationCap, 
-  Clock, 
-  Send, 
-  RotateCw, 
-  CheckCircle2, 
+import {
+  Sparkles,
+  Pin,
+  ExternalLink,
+  CheckSquare,
+  Square,
+  FileText,
+  MessageSquare,
+  ListChecks,
+  Layers,
+  GraduationCap,
+  Clock,
+  Send,
+  RotateCw,
+  CheckCircle2,
   XCircle,
   Plus,
   Trash2,
@@ -134,11 +134,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Normalized collections
   const actionItems: ActionItem[] = actionsArtifact?.content?.actionItems || [];
   const flashcardsList: Flashcard[] = flashcardArtifact?.content?.flashcards || [];
-  const quizQuestions: QuizQuestion[] = 
-    quizArtifact?.content?.quiz?.questions || 
-    (quizArtifact?.content as any)?.questions || 
+  const quizQuestions: QuizQuestion[] =
+    quizArtifact?.content?.quiz?.questions ||
+    (quizArtifact?.content as any)?.questions ||
     [];
-  const interviewQuestions: InterviewQuestion[] = 
+  const interviewQuestions: InterviewQuestion[] =
     interviewArtifact?.content?.interviewQA?.questions ||
     (interviewArtifact?.content as any)?.questions ||
     [];
@@ -276,7 +276,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
     const newQ = qaQuestion;
     setQaQuestion('');
-    
+
     setTimeout(() => {
       setQaHistory((prev) => [
         ...prev,
@@ -391,7 +391,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Calculations
   const completedActionsCount = actionItems.filter((i) => i.completed).length;
   const actionsProgressPercent = actionItems.length > 0 ? Math.round((completedActionsCount / actionItems.length) * 100) : 0;
-  
+
   const currentCard = flashcardsList[activeCardIndex] || null;
   const knownCardsCount = Object.values(knownCards).filter(Boolean).length;
 
@@ -610,7 +610,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
       {/* Editor Main Content Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', maxWidth: '1080px', width: '100%', margin: '0 auto' }}>
-        
+
         {/* 🌐 Webpage Note-Taking & Interview Studio Card */}
         <div style={{
           marginBottom: '24px',
@@ -629,7 +629,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 Take Notes from Webpage or Technical Article
               </span>
             </div>
-            
+
             <button
               type="button"
               onClick={() => setWebUrlInput('https://machinelearningmastery.com/building-a-custom-llm-evaluation-harness-in-python-from-scratch/')}
@@ -1794,8 +1794,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         Quiz Completed! Score: {correctQuizCount} / {quizQuestions.length} ({Math.round((correctQuizCount / quizQuestions.length) * 100)}%)
                       </h4>
                       <p style={{ fontSize: '0.82rem', color: '#475569' }}>
-                        {correctQuizCount === quizQuestions.length 
-                          ? 'Outstanding! You have mastered all key concepts in this video.' 
+                        {correctQuizCount === quizQuestions.length
+                          ? 'Outstanding! You have mastered all key concepts in this video.'
                           : 'Great effort! Review the explanations below to solidify understanding.'}
                       </p>
                     </div>

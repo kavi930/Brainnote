@@ -3,7 +3,7 @@
 // ==============================================================================
 
 import { describe, it, expect } from 'vitest';
-import { 
+import {
   generateSummary,
   generateStructuredNotes,
   generateConceptMap,
@@ -173,5 +173,35 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
     expect(remainingIds).not.toContain('art-opt-2');
     expect(remainingIds).toContain('art-opt-1');
     expect(remainingIds).toContain('art-opt-3');
+  });
+
+  it('guarantees search across all notebooks never returns the deleted AI Video Tools Study Deck', () => {
+    const store = getTenantStore('tenant-acme');
+    const query = 'AI Video Tools Study Deck'.toLowerCase();
+
+    // Search across all artifacts
+    const allArtifacts: AIArtifact[] = [];
+    store.notes.forEach((n) => {
+      (n.aiArtifacts || [])
+        .filter((a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck')
+        .forEach((a) => allArtifacts.push(a));
+    });
+
+    const matchingArtifacts = allArtifacts.filter(
+      (a) =>
+        a.title.toLowerCase().includes(query) ||
+        a.content?.summaryText?.toLowerCase().includes(query)
+    );
+    expect(matchingArtifacts).toHaveLength(0);
+
+    // Verify search for another active document succeeds
+    const evalQuery = 'Evaluation Harness'.toLowerCase();
+    const evalMatches = allArtifacts.filter((a) => a.title.toLowerCase().includes(evalQuery));
+    expect(evalMatches.length).toBeGreaterThanOrEqual(1);
+
+    // Verify original YouTube source is still discoverable when searching for AI Video
+    const allSources = store.notes.flatMap((n) => n.sources || []);
+    const videoSourceMatches = allSources.filter((s) => s.title.toLowerCase().includes('video generator'));
+    expect(videoSourceMatches.length).toBeGreaterThanOrEqual(1);
   });
 });

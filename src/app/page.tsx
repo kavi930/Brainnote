@@ -16,6 +16,7 @@ import { BillingModal } from '@/components/BillingModal';
 import { ShareModal } from '@/components/ShareModal';
 import { ExtensionModal } from '@/components/ExtensionModal';
 import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
+import { GlobalSearchModal } from '@/components/search/GlobalSearchModal';
 import { INITIAL_TENANTS, TenantDataset } from '@/lib/mock-data';
 import {
   Note,
@@ -66,6 +67,7 @@ export default function BrainnoteApp() {
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [globalViewerArtifactId, setGlobalViewerArtifactId] = useState<string | null>(null);
 
   // Generation status
@@ -172,6 +174,67 @@ export default function BrainnoteApp() {
       setActiveNotebookId(notebooks[0].id);
     }
   }, [notebooks, activeNotebookId]);
+
+  // Global keyboard shortcut: Cmd+K / Ctrl+K opens Global Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Sync live notes and artifacts from /api/notes on mount and tenant change
+  useEffect(() => {
+    // Purge any stale localStorage drafts or search history referencing the deleted test artifact
+    try {
+      if (typeof window !== 'undefined') {
+        const historyKey = 'brainnote_recent_searches';
+        const rawHistory = localStorage.getItem(historyKey);
+        if (rawHistory) {
+          try {
+            const parsed = JSON.parse(rawHistory);
+            if (Array.isArray(parsed)) {
+              const cleaned = parsed.filter(
+                (q: string) => !q.toLowerCase().includes('study deck') && !q.toLowerCase().includes('art-yt-study')
+              );
+              localStorage.setItem(historyKey, JSON.stringify(cleaned));
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+
+    // Fetch authoritative state from server
+    fetch(`/api/notes?tenantId=${encodeURIComponent(activeTenantId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.notes) {
+          const cleanedNotes = data.notes.map((n: Note) => ({
+            ...n,
+            aiArtifacts: (n.aiArtifacts || []).filter(
+              (a: AIArtifact) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
+            ),
+          }));
+
+          setDatasets((prev) => {
+            const current = prev[activeTenantId] || prev['tenant-acme'];
+            return {
+              ...prev,
+              [activeTenantId]: {
+                ...current,
+                notes: cleanedNotes,
+                usage: data.usage || current.usage,
+              },
+            };
+          });
+        }
+      })
+      .catch(() => {});
+  }, [activeTenantId]);
 
   // Total sources across all notebooks
   const totalSourcesCount = useMemo(() => {
@@ -919,6 +982,7 @@ export default function BrainnoteApp() {
           onOpenExtension={() => setIsExtensionModalOpen(true)}
           onOpenBilling={() => setIsBillingModalOpen(true)}
           planTier={currentDataset.subscription.planTier}
+          onOpenSearchModal={() => setIsSearchModalOpen(true)}
         />
 
         {/* Dynamic View Router */}
@@ -1077,6 +1141,20 @@ export default function BrainnoteApp() {
           onShowToast={showToast}
         />
       )}
+
+      {/* MODAL 6: Global Command Search Modal (Cmd+K / Search Header) */}
+      <GlobalSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        notebooks={notebooks}
+        notes={currentDataset.notes}
+        onSelectNotebook={(id) => setActiveNotebookId(id)}
+        onSelectNote={(noteId) => setSelectedNoteId(noteId)}
+        onOpenArtifact={(artId) => setGlobalViewerArtifactId(artId)}
+        onNavigate={(sec) => setCurrentSection(sec)}
+      />
 
       {/* TOAST NOTIFICATION */}
       {toastMessage && (

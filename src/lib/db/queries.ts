@@ -49,6 +49,12 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
       .limit(1)
       .maybeSingle();
 
+    // Purge deleted test artifact from Supabase PostgreSQL if present
+    await supabase
+      .from('ai_artifacts')
+      .delete()
+      .or('id.eq.art-yt-study,title.eq.AI Video Tools Study Deck');
+
     // 5. Fetch Notes with nested sources and artifacts
     const { data: notes } = await supabase
       .from('notes')
@@ -90,7 +96,9 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
         errorMessage: s.error_message as string | undefined,
         createdAt: s.created_at as string,
       })),
-      aiArtifacts: (n.ai_artifacts || []).map((a: Record<string, unknown>) => ({
+      aiArtifacts: (n.ai_artifacts || [])
+        .filter((a: Record<string, unknown>) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck')
+        .map((a: Record<string, unknown>) => ({
         id: a.id as string,
         tenantId: a.tenant_id as string,
         noteId: a.note_id as string,

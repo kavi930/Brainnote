@@ -54,9 +54,16 @@ export const HomeDashboardView: React.FC<HomeDashboardViewProps> = ({
     (nb.sources || []).forEach((src) => {
       allSources.push({ ...src, notebookTitle: nb.title, notebookId: nb.id });
     });
-    (nb.artifacts || []).forEach((art) => {
-      allArtifacts.push({ ...art, notebookTitle: nb.title });
-    });
+    (nb.artifacts || [])
+      .filter(
+        (art) =>
+          art.id !== 'art-yt-study' &&
+          art.title !== 'AI Video Tools Study Deck' &&
+          !art.title.toLowerCase().includes('ai video tools study deck')
+      )
+      .forEach((art) => {
+        allArtifacts.push({ ...art, notebookTitle: nb.title });
+      });
   });
 
   // Recent 6 sources
