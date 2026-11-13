@@ -15,6 +15,7 @@ import {
   saveNoteToDb,
   updateNoteArtifactInDb,
   deleteNoteArtifactFromDb,
+  deleteSourceFromDb,
   deleteNoteFromDb,
   inviteCollaboratorInDb,
   removeCollaboratorFromDb,
@@ -28,29 +29,37 @@ declare global {
 
 if (!global.__BRAINNOTE_STORE__) {
   global.__BRAINNOTE_STORE__ = JSON.parse(JSON.stringify(INITIAL_TENANTS));
-} else {
-  // Clean lingering demo notes from in-memory cache and remove deleted test artifacts
-  for (const tId in global.__BRAINNOTE_STORE__) {
-    if (global.__BRAINNOTE_STORE__[tId]?.notes) {
-      for (const note of global.__BRAINNOTE_STORE__[tId].notes) {
-        if (note.aiArtifacts) {
-          note.aiArtifacts = note.aiArtifacts.filter(
-            (a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
-          );
-        }
-      }
-    }
-  }
+}
 
-  if (global.__BRAINNOTE_STORE__['tenant-acme']) {
-    global.__BRAINNOTE_STORE__['tenant-acme'].notes = global.__BRAINNOTE_STORE__['tenant-acme'].notes.filter(
-      (n) => !n.id.startsWith('note-acme-')
-    );
-    if (global.__BRAINNOTE_STORE__['tenant-acme'].notes.length === 0) {
-      global.__BRAINNOTE_STORE__['tenant-acme'].notes = JSON.parse(JSON.stringify(INITIAL_TENANTS['tenant-acme'].notes));
-    }
-    global.__BRAINNOTE_STORE__['tenant-acme'].usage.notesCount = global.__BRAINNOTE_STORE__['tenant-acme'].notes.length;
+// Clean in-memory cache: permanently purge deleted test source, notebook, and artifacts
+for (const tId in global.__BRAINNOTE_STORE__) {
+  if (global.__BRAINNOTE_STORE__[tId]?.notes) {
+    global.__BRAINNOTE_STORE__[tId].notes = global.__BRAINNOTE_STORE__[tId].notes
+      .filter((n) => n.id !== 'note-user-ai-video-tools' && !n.title.toLowerCase().includes('top 5 free ai video generator'))
+      .map((n) => ({
+        ...n,
+        sources: (n.sources || []).filter(
+          (s) => s.id !== 'src-yt-video-1' && !s.title.toLowerCase().includes('top 5 free ai video generator')
+        ),
+        aiArtifacts: (n.aiArtifacts || []).filter(
+          (a) =>
+            !a.id.startsWith('art-yt-') &&
+            a.id !== 'art-yt-study' &&
+            a.title !== 'AI Video Tools Study Deck' &&
+            !a.title.toLowerCase().includes('free ai video generator')
+        ),
+      }));
   }
+}
+
+if (global.__BRAINNOTE_STORE__['tenant-acme']) {
+  global.__BRAINNOTE_STORE__['tenant-acme'].notes = global.__BRAINNOTE_STORE__['tenant-acme'].notes.filter(
+    (n) => !n.id.startsWith('note-acme-') && n.id !== 'note-user-ai-video-tools'
+  );
+  if (global.__BRAINNOTE_STORE__['tenant-acme'].notes.length === 0) {
+    global.__BRAINNOTE_STORE__['tenant-acme'].notes = JSON.parse(JSON.stringify(INITIAL_TENANTS['tenant-acme'].notes));
+  }
+  global.__BRAINNOTE_STORE__['tenant-acme'].usage.notesCount = global.__BRAINNOTE_STORE__['tenant-acme'].notes.length;
 }
 
 export function getTenantStore(tenantId: string): TenantDataset {
@@ -60,18 +69,30 @@ export function getTenantStore(tenantId: string): TenantDataset {
 
   // Ensure all initial notes (such as note-custom-llm-eval-harness) exist and stay enriched
   if (global.__BRAINNOTE_STORE__[tenantId]) {
+    // Purge deleted test items
+    global.__BRAINNOTE_STORE__[tenantId].notes = global.__BRAINNOTE_STORE__[tenantId].notes
+      .filter((n) => n.id !== 'note-user-ai-video-tools' && !n.title.toLowerCase().includes('top 5 free ai video generator'))
+      .map((n) => ({
+        ...n,
+        sources: (n.sources || []).filter(
+          (s) => s.id !== 'src-yt-video-1' && !s.title.toLowerCase().includes('top 5 free ai video generator')
+        ),
+        aiArtifacts: (n.aiArtifacts || []).filter(
+          (a) =>
+            !a.id.startsWith('art-yt-') &&
+            a.id !== 'art-yt-study' &&
+            a.title !== 'AI Video Tools Study Deck' &&
+            !a.title.toLowerCase().includes('free ai video generator')
+        ),
+      }));
+
     const initialNotes = INITIAL_TENANTS[tenantId]?.notes || [];
     for (const initN of initialNotes) {
+      if (initN.id === 'note-user-ai-video-tools') continue;
       const existing = global.__BRAINNOTE_STORE__[tenantId].notes.find((n) => n.id === initN.id);
       if (!existing) {
         global.__BRAINNOTE_STORE__[tenantId].notes.push(JSON.parse(JSON.stringify(initN)));
       } else {
-        // Filter out art-yt-study if present
-        if (existing.aiArtifacts) {
-          existing.aiArtifacts = existing.aiArtifacts.filter(
-            (a) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
-          );
-        }
         if (!existing.aiArtifacts || existing.aiArtifacts.length < (initN.aiArtifacts?.length || 0)) {
           existing.aiArtifacts = JSON.parse(JSON.stringify(initN.aiArtifacts || []));
         }
@@ -286,6 +307,35 @@ export async function deleteNoteFromStoreAsync(tenantId: string, noteId: string)
   const removed = deleteNoteFromStore(tenantId, noteId);
   if (removed && isDatabaseConfigured()) {
     await deleteNoteFromDb(tenantId, noteId);
+  }
+  return removed;
+}
+
+export function deleteSourceFromStore(tenantId: string, sourceId: string): boolean {
+  const store = getTenantStore(tenantId);
+  let removed = false;
+
+  for (const note of store.notes) {
+    if (note.sources && note.sources.some((s) => s.id === sourceId)) {
+      note.sources = note.sources.filter((s) => s.id !== sourceId);
+      note.updatedAt = new Date().toISOString();
+      removed = true;
+    }
+  }
+
+  if (removed && isDatabaseConfigured()) {
+    deleteSourceFromDb(tenantId, sourceId).catch((err) => {
+      console.warn('[server-store] Background source delete sync failed:', err);
+    });
+  }
+
+  return removed;
+}
+
+export async function deleteSourceFromStoreAsync(tenantId: string, sourceId: string): Promise<boolean> {
+  const removed = deleteSourceFromStore(tenantId, sourceId);
+  if (removed && isDatabaseConfigured()) {
+    await deleteSourceFromDb(tenantId, sourceId);
   }
   return removed;
 }

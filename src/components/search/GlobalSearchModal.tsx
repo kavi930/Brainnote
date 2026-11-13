@@ -61,12 +61,16 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Strictly purge any deleted test artifact terms
-          const cleaned = parsed.filter(
-            (term: string) =>
-              !term.toLowerCase().includes('study deck') &&
-              !term.toLowerCase().includes('art-yt-study')
-          );
+          // Strictly purge any deleted test artifact and source terms
+          const cleaned = parsed.filter((term: string) => {
+            const lower = term.toLowerCase();
+            return (
+              !lower.includes('study deck') &&
+              !lower.includes('art-yt') &&
+              !lower.includes('video generator') &&
+              !lower.includes('top 5 free')
+            );
+          });
           setRecentSearches(cleaned);
           localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(cleaned));
         }
@@ -86,19 +90,27 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   // Save query to recent searches
   const recordSearch = (q: string) => {
     const trimmed = q.trim();
-    if (!trimmed || trimmed.toLowerCase().includes('study deck')) return;
+    const lower = trimmed.toLowerCase();
+    if (
+      !trimmed ||
+      lower.includes('study deck') ||
+      lower.includes('video generator') ||
+      lower.includes('top 5 free') ||
+      lower.includes('art-yt')
+    )
+      return;
     try {
       const updated = [trimmed, ...recentSearches.filter((s) => s.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
       setRecentSearches(updated);
       localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
-    } catch {}
+    } catch { }
   };
 
   const clearHistory = () => {
     setRecentSearches([]);
     try {
       localStorage.removeItem(RECENT_SEARCHES_KEY);
-    } catch {}
+    } catch { }
   };
 
   const q = searchQuery.toLowerCase().trim();
@@ -112,9 +124,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       (nb.artifacts || [])
         .filter(
           (a) =>
+            !a.id.startsWith('art-yt-') &&
             a.id !== 'art-yt-study' &&
             a.title !== 'AI Video Tools Study Deck' &&
-            !a.title.toLowerCase().includes('ai video tools study deck')
+            !a.title.toLowerCase().includes('ai video tools study deck') &&
+            !a.title.toLowerCase().includes('free ai video generator')
         )
         .forEach((art) => {
           const matchTitle = art.title.toLowerCase().includes(q);
@@ -131,31 +145,40 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     return results.slice(0, 5);
   }, [notebooks, q]);
 
-  // 2. Search Sources across all notebooks
+  // 2. Search Sources across all notebooks (Strictly excluding deleted test sources)
   const matchedSources = useMemo(() => {
     if (!q) return [];
     const results: (NoteSource & { notebookTitle: string; notebookId: string })[] = [];
 
     notebooks.forEach((nb) => {
-      (nb.sources || []).forEach((src) => {
-        const matchTitle = src.title.toLowerCase().includes(q);
-        const matchUrl = src.sourceUrl?.toLowerCase().includes(q);
-        const matchTranscript = src.rawTranscript?.toLowerCase().includes(q);
+      (nb.sources || [])
+        .filter(
+          (src) =>
+            src.id !== 'src-yt-video-1' &&
+            !src.title.toLowerCase().includes('top 5 free ai video generator')
+        )
+        .forEach((src) => {
+          const matchTitle = src.title.toLowerCase().includes(q);
+          const matchUrl = src.sourceUrl?.toLowerCase().includes(q);
+          const matchTranscript = src.rawTranscript?.toLowerCase().includes(q);
 
-        if (matchTitle || matchUrl || matchTranscript) {
-          results.push({ ...src, notebookTitle: nb.title, notebookId: nb.id });
-        }
-      });
+          if (matchTitle || matchUrl || matchTranscript) {
+            results.push({ ...src, notebookTitle: nb.title, notebookId: nb.id });
+          }
+        });
     });
 
     return results.slice(0, 5);
   }, [notebooks, q]);
 
-  // 3. Search Notes
+  // 3. Search Notes (Excluding deleted test notebook notes)
   const matchedNotes = useMemo(() => {
     if (!q) return [];
     return notes
       .filter((n) => {
+        if (n.id === 'note-user-ai-video-tools' || n.title.toLowerCase().includes('top 5 free ai video generator')) {
+          return false;
+        }
         const matchTitle = n.title.toLowerCase().includes(q);
         const matchContent = n.content.toLowerCase().includes(q);
         return matchTitle || matchContent;
@@ -163,11 +186,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       .slice(0, 4);
   }, [notes, q]);
 
-  // 4. Search Notebooks
+  // 4. Search Notebooks (Excluding deleted test notebooks)
   const matchedNotebooks = useMemo(() => {
     if (!q) return [];
     return notebooks
       .filter((nb) => {
+        if (nb.id === 'note-user-ai-video-tools' || nb.title.toLowerCase().includes('top 5 free ai video generator')) {
+          return false;
+        }
         const matchTitle = nb.title.toLowerCase().includes(q);
         const matchDesc = (nb.description || '').toLowerCase().includes(q);
         return matchTitle || matchDesc;
@@ -320,7 +346,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   {[
                     { label: 'Evaluation Harness', desc: 'Custom Python LLM test harness' },
                     { label: 'Multi-Tenant RAG', desc: 'PostgreSQL Row-Level Security' },
-                    { label: 'AI Video Generators', desc: 'Uploaded YouTube source analysis' },
+                    { label: 'Python Architecture', desc: 'Modular LLM testing and scoring pipeline' },
                     { label: 'Decisions Log', desc: 'Key architecture choices' },
                   ].map((sug, idx) => (
                     <button

@@ -49,11 +49,31 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
       .limit(1)
       .maybeSingle();
 
-    // Purge deleted test artifact from Supabase PostgreSQL if present
+    // Purge deleted test source, notebook, and artifacts from Supabase PostgreSQL if present
     await supabase
       .from('ai_artifacts')
       .delete()
-      .or('id.eq.art-yt-study,title.eq.AI Video Tools Study Deck');
+      .or('id.in.(art-yt-study,art-yt-summary,art-yt-actions,art-yt-quiz),note_id.eq.note-user-ai-video-tools,title.ilike.%AI Video Tools%,title.ilike.%Free AI Video Generators%');
+
+    await supabase
+      .from('notebook_sources')
+      .delete()
+      .eq('source_id', 'src-yt-video-1');
+
+    await supabase
+      .from('note_sources')
+      .delete()
+      .or('id.eq.src-yt-video-1,note_id.eq.note-user-ai-video-tools,title.ilike.%Top 5 Free AI Video Generator%');
+
+    await supabase
+      .from('notebooks')
+      .delete()
+      .or('id.eq.note-user-ai-video-tools,title.ilike.%Top 5 Free AI Video Generator%');
+
+    await supabase
+      .from('notes')
+      .delete()
+      .or('id.eq.note-user-ai-video-tools,title.ilike.%Top 5 Free AI Video Generator%');
 
     // 5. Fetch Notes with nested sources and artifacts
     const { data: notes } = await supabase
@@ -72,7 +92,9 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
       .select('*')
       .eq('tenant_id', tenantId);
 
-    const formattedNotes: Note[] = (notes || []).map((n) => ({
+    const formattedNotes: Note[] = (notes || [])
+      .filter((n) => n.id !== 'note-user-ai-video-tools' && !n.title.toLowerCase().includes('top 5 free ai video generator'))
+      .map((n) => ({
       id: n.id,
       tenantId: n.tenant_id,
       userId: n.user_id,
@@ -82,7 +104,9 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
       isPinned: n.is_pinned,
       isArchived: n.is_archived,
       tags: Array.isArray(n.tags) ? n.tags : [],
-      sources: (n.sources || []).map((s: Record<string, unknown>) => ({
+      sources: (n.sources || [])
+        .filter((s: Record<string, unknown>) => s.id !== 'src-yt-video-1' && !(typeof s.title === 'string' && s.title.toLowerCase().includes('top 5 free ai video generator')))
+        .map((s: Record<string, unknown>) => ({
         id: s.id as string,
         tenantId: s.tenant_id as string,
         noteId: s.note_id as string,
@@ -97,7 +121,12 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
         createdAt: s.created_at as string,
       })),
       aiArtifacts: (n.ai_artifacts || [])
-        .filter((a: Record<string, unknown>) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck')
+        .filter((a: Record<string, unknown>) => 
+          !((a.id as string)?.startsWith('art-yt-')) && 
+          a.id !== 'art-yt-study' && 
+          a.title !== 'AI Video Tools Study Deck' &&
+          !(typeof a.title === 'string' && a.title.toLowerCase().includes('free ai video generator'))
+        )
         .map((a: Record<string, unknown>) => ({
         id: a.id as string,
         tenantId: a.tenant_id as string,
@@ -305,6 +334,34 @@ export async function deleteNoteArtifactFromDb(
       .from('ai_artifacts')
       .delete()
       .eq('id', artifactId)
+      .eq('tenant_id', tenantId);
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Deletes a source from Supabase PostgreSQL.
+ */
+export async function deleteSourceFromDb(
+  tenantId: string,
+  sourceId: string
+): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) return false;
+
+  try {
+    await supabase
+      .from('notebook_sources')
+      .delete()
+      .eq('source_id', sourceId);
+
+    const { error } = await supabase
+      .from('note_sources')
+      .delete()
+      .eq('id', sourceId)
       .eq('tenant_id', tenantId);
 
     return !error;

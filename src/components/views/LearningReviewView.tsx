@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  GraduationCap, 
-  Layers, 
-  BrainCircuit, 
-  Briefcase, 
-  RotateCw, 
-  CheckCircle2, 
-  ChevronLeft, 
-  ChevronRight, 
-  Eye, 
-  Copy, 
-  Check, 
-  Sparkles, 
-  CheckSquare, 
-  X, 
+import {
+  GraduationCap,
+  Layers,
+  BrainCircuit,
+  Briefcase,
+  RotateCw,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Copy,
+  Check,
+  Sparkles,
+  CheckSquare,
+  X,
   BookMarked,
   Award,
   ExternalLink,
@@ -219,11 +219,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
       <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2 text-xs">
         <button
           onClick={() => setActiveTab('flashcards')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-            activeTab === 'flashcards'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${activeTab === 'flashcards'
               ? 'bg-[var(--accent-primary)] text-white'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
-          }`}
+            }`}
         >
           <Layers size={14} />
           <span>Flashcards ({flashcards.length})</span>
@@ -231,11 +230,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
 
         <button
           onClick={() => setActiveTab('quiz')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-            activeTab === 'quiz'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${activeTab === 'quiz'
               ? 'bg-[var(--accent-primary)] text-white'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
-          }`}
+            }`}
         >
           <BrainCircuit size={14} />
           <span>Quiz ({quizQuestions.length})</span>
@@ -243,11 +241,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
 
         <button
           onClick={() => setActiveTab('interview')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-            activeTab === 'interview'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${activeTab === 'interview'
               ? 'bg-[var(--accent-primary)] text-white'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
-          }`}
+            }`}
         >
           <Briefcase size={14} />
           <span>Interview Q&A ({interviewQuestions.length})</span>
@@ -255,11 +252,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
 
         <button
           onClick={() => setActiveTab('study_guides')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-            activeTab === 'study_guides'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${activeTab === 'study_guides'
               ? 'bg-[var(--accent-primary)] text-white'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
-          }`}
+            }`}
         >
           <Sparkles size={14} />
           <span>Study Guides ({studyGuideArtifacts.length})</span>
@@ -319,11 +315,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
                   e.stopPropagation();
                   toggleMasteredCard(activeCardIndex);
                 }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition-colors ${
-                  masteredCards[activeCardIndex]
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition-colors ${masteredCards[activeCardIndex]
                     ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                     : 'hover:bg-[var(--bg-card-hover)] text-[var(--text-muted)]'
-                }`}
+                  }`}
               >
                 <CheckCircle2 size={14} />
                 <span>{masteredCards[activeCardIndex] ? 'Mastered' : 'Mark as Mastered'}</span>
@@ -473,11 +468,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
                 <button
                   key={lvl}
                   onClick={() => setInterviewFilter(lvl)}
-                  className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                    interviewFilter === lvl
+                  className={`px-3 py-1 rounded-lg font-semibold transition-colors ${interviewFilter === lvl
                       ? 'bg-[var(--accent-primary)] text-white'
                       : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
-                  }`}
+                    }`}
                 >
                   {lvl}
                 </button>
@@ -519,11 +513,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          q.difficulty === 'Senior'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${q.difficulty === 'Senior'
                             ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
                             : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
-                        }`}>
+                          }`}>
                           {q.difficulty}
                         </span>
                         {q.category && (
@@ -539,11 +532,10 @@ export const LearningReviewView: React.FC<LearningReviewViewProps> = ({
 
                     <button
                       onClick={() => setMasteredInterview((prev) => ({ ...prev, [q.id]: !prev[q.id] }))}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-colors ${
-                        isMastered
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-colors ${isMastered
                           ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                           : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
+                        }`}
                     >
                       {isMastered ? 'Mastered' : 'Mark Mastered'}
                     </button>

@@ -1,23 +1,23 @@
 'use client';
 
 import React from 'react';
-import { 
-  Sparkles, 
-  Plus, 
-  Globe, 
-  FileText, 
-  Youtube, 
-  Mic, 
-  BookMarked, 
-  Layers, 
-  MessageSquare, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  ArrowRight, 
-  GraduationCap, 
-  BrainCircuit, 
-  Briefcase, 
+import {
+  Sparkles,
+  Plus,
+  Globe,
+  FileText,
+  Youtube,
+  Mic,
+  BookMarked,
+  Layers,
+  MessageSquare,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  ArrowRight,
+  GraduationCap,
+  BrainCircuit,
+  Briefcase,
   FileCheck,
   ChevronRight
 } from 'lucide-react';
@@ -304,11 +304,10 @@ export const HomeDashboardView: React.FC<HomeDashboardViewProps> = ({
                   <div
                     key={nb.id}
                     onClick={() => onSelectNotebook(nb.id)}
-                    className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      isActive
+                    className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${isActive
                         ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-light)]/40 shadow-sm'
                         : 'border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <h4 className="font-bold text-xs text-[var(--text-primary)] truncate">

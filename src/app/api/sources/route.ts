@@ -4,7 +4,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantStoreAsync } from '@/lib/server-store';
+import { getTenantStoreAsync, deleteSourceFromStoreAsync } from '@/lib/server-store';
 import { NoteSource } from '@/types';
 
 export async function GET(req: NextRequest) {
@@ -62,6 +62,34 @@ export async function GET(req: NextRequest) {
     const error = err as Error;
     return NextResponse.json(
       { error: error.message || 'Failed to list source library' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const tenantId = searchParams.get('tenantId') || 'tenant-acme';
+    const sourceId = searchParams.get('sourceId');
+
+    if (!sourceId) {
+      return NextResponse.json(
+        { error: 'sourceId query parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    const removed = await deleteSourceFromStoreAsync(tenantId, sourceId);
+    return NextResponse.json({
+      success: removed,
+      deletedSourceId: sourceId,
+      tenantId,
+    });
+  } catch (err: unknown) {
+    const error = err as Error;
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete source' },
       { status: 500 }
     );
   }

@@ -168,10 +168,12 @@ export default function BrainnoteApp() {
     return notebooks[0] || null;
   }, [notebooks, activeNotebookId]);
 
-  // Ensure activeNotebookId is synced
+  // Ensure activeNotebookId is synced and falls back away from any deleted notebook
   useEffect(() => {
-    if (notebooks.length > 0 && (!activeNotebookId || !notebooks.some((nb) => nb.id === activeNotebookId))) {
-      setActiveNotebookId(notebooks[0].id);
+    if (notebooks.length > 0) {
+      if (!activeNotebookId || activeNotebookId === 'note-user-ai-video-tools' || !notebooks.some((nb) => nb.id === activeNotebookId)) {
+        setActiveNotebookId(notebooks[0].id);
+      }
     }
   }, [notebooks, activeNotebookId]);
 
@@ -189,7 +191,7 @@ export default function BrainnoteApp() {
 
   // Sync live notes and artifacts from /api/notes on mount and tenant change
   useEffect(() => {
-    // Purge any stale localStorage drafts or search history referencing the deleted test artifact
+    // Purge any stale localStorage drafts or search history referencing deleted test items
     try {
       if (typeof window !== 'undefined') {
         const historyKey = 'brainnote_recent_searches';
@@ -198,9 +200,15 @@ export default function BrainnoteApp() {
           try {
             const parsed = JSON.parse(rawHistory);
             if (Array.isArray(parsed)) {
-              const cleaned = parsed.filter(
-                (q: string) => !q.toLowerCase().includes('study deck') && !q.toLowerCase().includes('art-yt-study')
-              );
+              const cleaned = parsed.filter((q: string) => {
+                const lower = q.toLowerCase();
+                return (
+                  !lower.includes('study deck') &&
+                  !lower.includes('art-yt') &&
+                  !lower.includes('video generator') &&
+                  !lower.includes('top 5 free')
+                );
+              });
               localStorage.setItem(historyKey, JSON.stringify(cleaned));
             }
           } catch {}
@@ -213,12 +221,21 @@ export default function BrainnoteApp() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.notes) {
-          const cleanedNotes = data.notes.map((n: Note) => ({
-            ...n,
-            aiArtifacts: (n.aiArtifacts || []).filter(
-              (a: AIArtifact) => a.id !== 'art-yt-study' && a.title !== 'AI Video Tools Study Deck'
-            ),
-          }));
+          const cleanedNotes = data.notes
+            .filter((n: Note) => n.id !== 'note-user-ai-video-tools' && !n.title.toLowerCase().includes('top 5 free ai video generator'))
+            .map((n: Note) => ({
+              ...n,
+              sources: (n.sources || []).filter(
+                (s) => s.id !== 'src-yt-video-1' && !s.title.toLowerCase().includes('top 5 free ai video generator')
+              ),
+              aiArtifacts: (n.aiArtifacts || []).filter(
+                (a: AIArtifact) =>
+                  !a.id.startsWith('art-yt-') &&
+                  a.id !== 'art-yt-study' &&
+                  a.title !== 'AI Video Tools Study Deck' &&
+                  !a.title.toLowerCase().includes('free ai video generator')
+              ),
+            }));
 
           setDatasets((prev) => {
             const current = prev[activeTenantId] || prev['tenant-acme'];
@@ -304,6 +321,10 @@ export default function BrainnoteApp() {
         tenantId: activeTenantId,
         note: updatedNote,
       }),
+    }).catch(() => { });
+
+    fetch(`/api/sources?tenantId=${encodeURIComponent(activeTenantId)}&sourceId=${encodeURIComponent(sourceId)}`, {
+      method: 'DELETE',
     }).catch(() => { });
 
     showToast('Source removed from notebook.');
