@@ -140,7 +140,7 @@ Tenant isolation is enforced via cryptographic tenant_id partition filters in pg
 
   it('confirms the test source, notebook, and all associated artifacts are permanently deleted', () => {
     const store = getTenantStore('tenant-acme');
-    
+
     // 1. Verify test note / notebook is permanently removed
     const videoNote = store.notes.find((n) => n.id === 'note-user-ai-video-tools' || n.title.includes('Top 5 Free AI Video Generator'));
     expect(videoNote).toBeUndefined();

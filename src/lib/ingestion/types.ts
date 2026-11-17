@@ -2,7 +2,7 @@
 // Brainnote AI — Source Ingestion Adapters & Data Types (Phase 3)
 // ==============================================================================
 
-import { SourceType, SourceProcessingStatus, CitationAnchor } from '@/types';
+import { SourceType, SourceProcessingStatus, CitationAnchor, AIArtifact } from '@/types';
 
 export interface IngestionRequest {
   tenantId: string;
@@ -18,6 +18,7 @@ export interface IngestionRequest {
   // Meeting specific consent verification (Legal & Platform Compliance)
   meetingConsentConfirmed?: boolean;
   meetingPlatform?: 'zoom' | 'google_meet' | 'microsoft_teams' | 'custom_recording';
+  metadata?: Record<string, unknown>;
 }
 
 export interface TextChunk {
@@ -54,6 +55,7 @@ export interface IngestionResult {
   pageCount?: number;
   slideCount?: number;
   citations: CitationAnchor[];
+  artifacts?: AIArtifact[];
   metadata: Record<string, unknown>;
   error?: {
     code: IngestionErrorCode;

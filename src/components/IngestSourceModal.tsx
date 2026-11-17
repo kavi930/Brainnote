@@ -1,20 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  X, 
-  Youtube, 
-  FileUp, 
-  Mic, 
-  Globe, 
-  Sparkles, 
-  Presentation, 
-  AlertCircle, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Clock 
+import {
+  X,
+  Youtube,
+  FileUp,
+  Mic,
+  Globe,
+  Sparkles,
+  Presentation,
+  AlertCircle,
+  ShieldCheck,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
-import { SourceType } from '@/types';
+import { SourceType, AIArtifact } from '@/types';
 
 interface IngestSourceModalProps {
   isOpen: boolean;
@@ -23,7 +23,9 @@ interface IngestSourceModalProps {
     sourceType: SourceType,
     title: string,
     urlOrFile: string,
-    initialNoteContent: string
+    initialNoteContent: string,
+    artifacts?: AIArtifact[],
+    createdNoteId?: string
   ) => void;
   initialTab?: SourceType;
 }
@@ -172,7 +174,7 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
 
       setTimeout(() => {
         setIsProcessing(false);
-        onIngestComplete(type, payloadTitle, payloadUrl || selectedFileName || 'File Upload', data.initialMarkdown);
+        onIngestComplete(type, payloadTitle, payloadUrl || selectedFileName || 'File Upload', data.initialMarkdown, data.artifacts, data.noteId);
         handleClose();
       }, 700);
     } catch {
@@ -441,21 +443,54 @@ export const IngestSourceModal: React.FC<IngestSourceModalProps> = ({
                       color: '#0F172A',
                       fontSize: '0.9rem',
                       outline: 'none',
-                      marginBottom: '16px',
+                      marginBottom: urlInput.includes('t=') ? '8px' : '16px',
                     }}
                   />
+                  {urlInput.includes('t=') && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: '#EEF2FF',
+                      border: '1px solid #C7D2FE',
+                      fontSize: '0.78rem',
+                      color: '#4338CA',
+                      marginBottom: '16px',
+                    }}>
+                      <Clock size={14} className="shrink-0 text-indigo-600" />
+                      <span>
+                        <strong>Timestamp Bookmark Detected:</strong> Video will be ingested with a starting navigation bookmark at <code>{urlInput.match(/[?&]t=([0-9a-zA-Z]+)/)?.[1] || 'start'}</code>.
+                      </span>
+                    </div>
+                  )}
                   <button
                     onClick={() => handleExecuteIngest('youtube')}
                     className="btn btn-primary"
                     style={{ width: '100%', marginBottom: '20px' }}
                   >
-                    Extract Timestamped Transcript
+                    Extract Timestamped Transcript & Build 7 Artifacts
                   </button>
 
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748B', marginBottom: '10px' }}>
-                    Or try a sample video to test the pipeline:
+                    Or try a sample video to test the intelligence engine:
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setUrlInput('https://www.youtube.com/watch?v=Ty8gcCKuwNI&t=230s');
+                        handleExecuteIngest('youtube', {
+                          overrideTitle: 'What is RAG ? | Completely Explained in 15 Minutes',
+                          overrideUrl: 'https://www.youtube.com/watch?v=Ty8gcCKuwNI&t=230s',
+                        });
+                      }}
+                      className="btn btn-secondary"
+                      style={{ justifyContent: 'flex-start', fontSize: '0.82rem', padding: '10px 14px', border: '1px solid #C7D2FE', background: '#F5F3FF', color: '#6D28D9' }}
+                    >
+                      <Youtube size={15} color="#7C3AED" />
+                      <span>⭐ Featured Test: What is RAG ? (t=230s) — Apna College</span>
+                    </button>
                     <button
                       onClick={() => handleExecuteIngest('youtube', {
                         overrideTitle: 'Stanford HAI: Autonomous AI Agents & Reasoning (2026)',

@@ -596,46 +596,52 @@ export const UniversalArtifactRenderer: React.FC<UniversalArtifactRendererProps>
     );
   }
 
-  // 6. STUDY GUIDE & REVISION NOTES
-  if (content?.studyGuide?.topics) {
+  // 6. STUDY GUIDE & REVISION NOTES / GLOSSARY
+  const studyGuideTopics = content?.studyGuide?.topics || [];
+  const studyGuideGlossary = content?.studyGuide?.glossary || [];
+
+  if (studyGuideTopics.length > 0 || studyGuideGlossary.length > 0) {
     return (
       <div className={`space-y-5 ${className}`}>
-        <div className="space-y-3">
-          <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-            <BookOpen size={14} className="text-indigo-500" />
-            <span>Curriculum Topics & Principles</span>
-          </h4>
+        {studyGuideTopics.length > 0 && (
           <div className="space-y-3">
-            {content.studyGuide.topics.map((t, idx) => (
-              <div
-                key={idx}
-                className="p-4 sm:p-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-xs space-y-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-md bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[11px] flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                  <h4 className="font-bold text-sm text-[var(--text-primary)]">{t.title}</h4>
-                </div>
-                <div className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed pl-7">
-                  <RichDocumentContent content={t.explanation} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Domain Glossary */}
-        {content.studyGuide.glossary && content.studyGuide.glossary.length > 0 && (
-          <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)]">
-              Domain Term Glossary
+            <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
+              <BookOpen size={14} className="text-indigo-500" />
+              <span>Curriculum Topics & Principles</span>
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {content.studyGuide.glossary.map((g, idx) => (
+            <div className="space-y-3">
+              {studyGuideTopics.map((t, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-1"
+                  className="p-4 sm:p-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-xs space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-md bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[11px] flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <h4 className="font-bold text-sm text-[var(--text-primary)]">{t.title}</h4>
+                  </div>
+                  <div className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed pl-7">
+                    <RichDocumentContent content={t.explanation} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Domain Glossary */}
+        {studyGuideGlossary.length > 0 && (
+          <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
+            <h4 className="font-bold text-xs uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
+              <Sparkles size={14} className="text-[var(--accent-primary)]" />
+              <span>Domain Concepts & Term Glossary ({studyGuideGlossary.length})</span>
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {studyGuideGlossary.map((g, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-1 shadow-xs hover:border-[var(--border-medium)] transition-colors"
                 >
                   <span className="font-bold text-xs text-[var(--accent-primary)]">{g.term}</span>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{g.definition}</p>
@@ -644,15 +650,22 @@ export const UniversalArtifactRenderer: React.FC<UniversalArtifactRendererProps>
             </div>
           </div>
         )}
+
+        {content?.formattedMarkdown && (
+          <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
+            <RichDocumentContent content={content.formattedMarkdown} />
+          </div>
+        )}
       </div>
     );
   }
 
-  // 7. EXECUTIVE SUMMARY & KEY TAKEAWAYS (Structured)
+  // 7. EXECUTIVE SUMMARY & KEY TAKEAWAYS (Structured) + MARKDOWN CONTENT
   const summaryText = content?.summaryText;
   const keyTakeaways = content?.keyTakeaways || [];
+  const markdownBody = content?.formattedMarkdown || content?.richText;
 
-  if (summaryText || keyTakeaways.length > 0) {
+  if (summaryText || keyTakeaways.length > 0 || markdownBody) {
     return (
       <div className={`space-y-6 ${className}`}>
         {/* Executive Summary Brief */}
@@ -688,6 +701,13 @@ export const UniversalArtifactRenderer: React.FC<UniversalArtifactRendererProps>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Full Document / Formatted Markdown */}
+        {markdownBody && typeof markdownBody === 'string' && (
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+            <RichDocumentContent content={markdownBody} />
           </div>
         )}
       </div>

@@ -181,19 +181,9 @@ export async function POST(req: NextRequest) {
       metadata: result.metadata,
     };
 
-    const newNote = {
-      id: result.noteId,
-      tenantId: ingestionReq.tenantId,
-      userId: ingestionReq.userId || 'user-active',
-      title: result.title,
-      content: result.structuredMarkdown,
-      isPinned: true,
-      isArchived: false,
-      tags: [
-        { id: `t-${result.sourceType}-${Date.now()}`, tenantId: ingestionReq.tenantId, name: result.sourceType, color: '#7C3AED' },
-      ],
-      sources: [sourceRecord],
-      aiArtifacts: [
+    const finalArtifacts = result.artifacts && result.artifacts.length > 0
+      ? result.artifacts
+      : [
         {
           id: `art-sum-${Date.now()}`,
           tenantId: ingestionReq.tenantId,
@@ -212,7 +202,21 @@ export async function POST(req: NextRequest) {
           tokensConsumed: 1200,
           createdAt: new Date().toISOString(),
         },
+      ];
+
+    const newNote = {
+      id: result.noteId,
+      tenantId: ingestionReq.tenantId,
+      userId: ingestionReq.userId || 'user-active',
+      title: result.title,
+      content: result.structuredMarkdown,
+      isPinned: true,
+      isArchived: false,
+      tags: [
+        { id: `t-${result.sourceType}-${Date.now()}`, tenantId: ingestionReq.tenantId, name: result.sourceType, color: '#7C3AED' },
       ],
+      sources: [sourceRecord],
+      aiArtifacts: finalArtifacts,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -223,7 +227,8 @@ export async function POST(req: NextRequest) {
     if (result.sourceType === 'audio' || result.sourceType === 'meeting') {
       store.usage.audioMinutesTranscribed += Math.ceil((result.durationSeconds || 1800) / 60);
     }
-    store.usage.aiTokensConsumed += 1200;
+    const totalTokensConsumed = finalArtifacts.reduce((acc, a) => acc + (a.tokensConsumed || 1200), 0);
+    store.usage.aiTokensConsumed += totalTokensConsumed;
 
     await saveNoteToStoreAsync(ingestionReq.tenantId, newNote as any);
 
@@ -233,6 +238,7 @@ export async function POST(req: NextRequest) {
       source: sourceRecord,
       note: newNote,
       initialMarkdown: result.structuredMarkdown,
+      artifacts: finalArtifacts,
       isAsync: result.isAsync,
       jobId: result.jobId,
       citations: result.citations,

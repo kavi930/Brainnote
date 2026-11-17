@@ -32,9 +32,70 @@ describe('Phase 3: Source Ingestion Adapters & Security', () => {
 
       expect(res.success).toBe(true);
       expect(res.sourceType).toBe('youtube');
-      expect(res.extractedText).toContain('[00:00:15]');
+      expect(res.extractedText).toMatch(/\[\d{2}:\d{2}\]/);
       expect(res.citations.length).toBeGreaterThan(0);
       expect(res.citations[0].formattedReference).toContain('[YouTube @');
+      expect(res.artifacts?.length).toBe(7);
+    });
+
+    it('upgrades YouTube pipeline for What is RAG? with real Hindi transcript and 12 sections', async () => {
+      const res = await processSourceIngestion({
+        tenantId: 'tenant-test',
+        userId: 'user-1',
+        sourceType: 'youtube',
+        sourceUrl: 'https://www.youtube.com/watch?v=Ty8gcCKuwNI&t=230s',
+        title: 'What is RAG ? | Completely Explained in 15 Minutes',
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.sourceType).toBe('youtube');
+      expect(res.metadata?.clipStartSeconds).toBe(230);
+      expect(res.metadata?.segmentCount).toBe(508);
+      expect(res.citations.length).toBeGreaterThanOrEqual(10);
+
+      // Verify all 12 sections A through L are present in the structured Markdown
+      expect(res.structuredMarkdown).toContain('Section A: Video Overview');
+      expect(res.structuredMarkdown).toContain('Section B: Learning Objectives');
+      expect(res.structuredMarkdown).toContain('Section C: Detailed Topic-wise Notes');
+      expect(res.structuredMarkdown).toContain('Section D: Important Concepts and Definitions');
+      expect(res.structuredMarkdown).toContain('Section E: Technical Explanations');
+      expect(res.structuredMarkdown).toContain('Section F: Examples and Case Studies');
+      expect(res.structuredMarkdown).toContain('Section G: Timestamp-wise Topic Navigation');
+      expect(res.structuredMarkdown).toContain('Section H: Important Statements');
+      expect(res.structuredMarkdown).toContain('Section I: Key Takeaways');
+      expect(res.structuredMarkdown).toContain('Section J: Practical Applications & Implementation');
+      expect(res.structuredMarkdown).toContain('Section K: Critical Analysis');
+      expect(res.structuredMarkdown).toContain('Section L: Final Conclusion');
+
+      // Verify YouTube clickable timestamp navigation
+      expect(res.structuredMarkdown).toContain('https://www.youtube.com/watch?v=Ty8gcCKuwNI&t=230s');
+      expect(res.structuredMarkdown).toContain('[Jump to Clip](https://www.youtube.com/watch?v=Ty8gcCKuwNI&t=230s)');
+      expect(res.structuredMarkdown).toContain('**[03:50]** Private Enterprise Data Injection');
+
+      // Verify all 7 distinct artifacts are generated with specific IDs and types
+      expect(res.artifacts).toBeDefined();
+      expect(res.artifacts?.length).toBe(7);
+
+      const types = res.artifacts?.map((a) => a.artifactType);
+      expect(types).toContain('structured_notes');
+      expect(types).toContain('study_guide');
+      expect(types).toContain('glossary');
+      expect(types).toContain('interview_qa');
+      expect(types).toContain('flashcards');
+      expect(types).toContain('quiz');
+      expect(types).toContain('practical_guide');
+
+      // Verify flashcards have content
+      const flashcardsArt = res.artifacts?.find((a) => a.artifactType === 'flashcards');
+      expect(flashcardsArt?.content?.flashcards?.length).toBeGreaterThanOrEqual(9);
+
+      // Verify quiz has questions with options and explanations
+      const quizArt = res.artifacts?.find((a) => a.artifactType === 'quiz');
+      expect(quizArt?.content?.quiz?.questions?.length).toBeGreaterThanOrEqual(5);
+
+      // Verify interview prep has questions and rubric criteria
+      const interviewArt = res.artifacts?.find((a) => a.artifactType === 'interview_qa');
+      expect(interviewArt?.content?.interviewQA?.questions?.length).toBeGreaterThanOrEqual(4);
     });
 
     it('rejects invalid YouTube URLs with clean error', async () => {

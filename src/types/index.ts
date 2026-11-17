@@ -26,7 +26,9 @@ export type AIArtifactType =
   | 'glossary'
   | 'compare_sources'
   | 'decisions'
-  | 'audio_overview';
+  | 'audio_overview'
+  | 'practical_guide'
+  | 'concepts';
 
 export type PrimaryNavSection =
   | 'home'

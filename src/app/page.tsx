@@ -826,15 +826,16 @@ export default function BrainnoteApp() {
     sourceType: SourceType,
     title: string,
     urlOrFile: string,
-    initialNoteContent: string
+    initialNoteContent: string,
+    artifacts?: AIArtifact[],
+    createdNoteId?: string
   ) => {
-    if (!activeNotebook) return;
-    const activeNote = activeNotebook.savedNotes[0];
+    const targetNoteId = createdNoteId || (activeNotebook ? activeNotebook.id : `note-${Date.now()}`);
 
     const newSource: NoteSource = {
       id: `src-${Date.now()}`,
       tenantId: activeTenantId,
-      noteId: activeNote.id,
+      noteId: targetNoteId,
       sourceType,
       title,
       sourceUrl: urlOrFile.startsWith('http') ? urlOrFile : undefined,
@@ -843,38 +844,74 @@ export default function BrainnoteApp() {
       createdAt: new Date().toISOString(),
     };
 
-    const updatedSources = [newSource, ...(activeNote.sources || [])];
-    const updatedNote: Note = {
-      ...activeNote,
-      sources: updatedSources,
-      content: activeNote.content ? `${activeNote.content}\n\n${initialNoteContent}` : initialNoteContent,
-      updatedAt: new Date().toISOString(),
-    };
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      const existingNote = current.notes.find((n) => n.id === targetNoteId);
 
-    setDatasets((prev) => ({
-      ...prev,
-      [activeTenantId]: {
-        ...prev[activeTenantId],
-        notes: prev[activeTenantId].notes.map((n) => (n.id === updatedNote.id ? updatedNote : n)),
-      },
-    }));
+      let updatedNotes: Note[];
+      if (existingNote) {
+        const mergedArtifacts = artifacts && artifacts.length > 0
+          ? [...artifacts, ...(existingNote.aiArtifacts || []).filter((a) => !artifacts.some((na) => na.id === a.id))]
+          : existingNote.aiArtifacts || [];
 
+        const updatedNote: Note = {
+          ...existingNote,
+          sources: [newSource, ...(existingNote.sources || []).filter((s) => s.id !== newSource.id)],
+          content: existingNote.content ? `${existingNote.content}\n\n${initialNoteContent}` : initialNoteContent,
+          aiArtifacts: mergedArtifacts,
+          updatedAt: new Date().toISOString(),
+        };
+        updatedNotes = current.notes.map((n) => (n.id === targetNoteId ? updatedNote : n));
+      } else {
+        const brandNewNote: Note = {
+          id: targetNoteId,
+          tenantId: activeTenantId,
+          userId: 'user-active',
+          title,
+          content: initialNoteContent,
+          isPinned: true,
+          isArchived: false,
+          tags: [
+            { id: `t-${sourceType}-${Date.now()}`, tenantId: activeTenantId, name: sourceType, color: '#7C3AED' },
+          ],
+          sources: [newSource],
+          aiArtifacts: artifacts || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        updatedNotes = [brandNewNote, ...current.notes];
+      }
+
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          notes: updatedNotes,
+          usage: {
+            ...current.usage,
+            notesCount: updatedNotes.length,
+          },
+        },
+      };
+    });
+
+    // Select this notebook and source
+    setActiveNotebookId(targetNoteId);
+    setSelectedNoteId(targetNoteId);
     setSelectedSourceMap((prev) => ({
       ...prev,
-      [activeNotebook.id]: [...(prev[activeNotebook.id] || []), newSource.id],
+      [targetNoteId]: [...(prev[targetNoteId] || []), newSource.id],
     }));
 
-    fetch('/api/notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantId: activeTenantId,
-        note: updatedNote,
-      }),
-    }).catch(() => { });
+    // AUTOMATIC DOCUMENT OPENING AFTER INGESTION (Requirement 2 & 4)
+    if (artifacts && artifacts.length > 0) {
+      setGlobalViewerArtifactId(artifacts[0].id);
+      showToast(`Ingested "${title}" & created ${artifacts.length} educational artifacts!`);
+    } else {
+      showToast(`Added source: ${title}`);
+    }
 
     setIsIngestModalOpen(false);
-    showToast(`Added source: ${title}`);
   };
 
   // Subscription plan tier upgrade

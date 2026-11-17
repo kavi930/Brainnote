@@ -95,53 +95,53 @@ export async function fetchTenantStoreFromDb(tenantId: string): Promise<TenantDa
     const formattedNotes: Note[] = (notes || [])
       .filter((n) => n.id !== 'note-user-ai-video-tools' && !n.title.toLowerCase().includes('top 5 free ai video generator'))
       .map((n) => ({
-      id: n.id,
-      tenantId: n.tenant_id,
-      userId: n.user_id,
-      folderId: n.folder_id || undefined,
-      title: n.title,
-      content: n.content,
-      isPinned: n.is_pinned,
-      isArchived: n.is_archived,
-      tags: Array.isArray(n.tags) ? n.tags : [],
-      sources: (n.sources || [])
-        .filter((s: Record<string, unknown>) => s.id !== 'src-yt-video-1' && !(typeof s.title === 'string' && s.title.toLowerCase().includes('top 5 free ai video generator')))
-        .map((s: Record<string, unknown>) => ({
-        id: s.id as string,
-        tenantId: s.tenant_id as string,
-        noteId: s.note_id as string,
-        sourceType: s.source_type as NoteSource['sourceType'],
-        title: s.title as string,
-        sourceUrl: s.source_url as string | undefined,
-        fileSizeBytes: (s.file_size_bytes as number) || 0,
-        durationSeconds: (s.duration_seconds as number) || 0,
-        rawTranscript: (s.raw_transcript as string) || '',
-        processingStatus: (s.processing_status as NoteSource['processingStatus']) || 'completed',
-        errorMessage: s.error_message as string | undefined,
-        createdAt: s.created_at as string,
-      })),
-      aiArtifacts: (n.ai_artifacts || [])
-        .filter((a: Record<string, unknown>) => 
-          !((a.id as string)?.startsWith('art-yt-')) && 
-          a.id !== 'art-yt-study' && 
-          a.title !== 'AI Video Tools Study Deck' &&
-          !(typeof a.title === 'string' && a.title.toLowerCase().includes('free ai video generator'))
-        )
-        .map((a: Record<string, unknown>) => ({
-        id: a.id as string,
-        tenantId: a.tenant_id as string,
-        noteId: a.note_id as string,
-        userId: a.user_id as string,
-        artifactType: a.artifact_type as AIArtifact['artifactType'],
-        title: a.title as string,
-        content: a.content as AIArtifact['content'],
-        modelUsed: (a.model_used as string) || 'gemini-1.5-pro',
-        tokensConsumed: (a.tokens_consumed as number) || 0,
-        createdAt: a.created_at as string,
-      })),
-      createdAt: n.created_at,
-      updatedAt: n.updated_at,
-    }));
+        id: n.id,
+        tenantId: n.tenant_id,
+        userId: n.user_id,
+        folderId: n.folder_id || undefined,
+        title: n.title,
+        content: n.content,
+        isPinned: n.is_pinned,
+        isArchived: n.is_archived,
+        tags: Array.isArray(n.tags) ? n.tags : [],
+        sources: (n.sources || [])
+          .filter((s: Record<string, unknown>) => s.id !== 'src-yt-video-1' && !(typeof s.title === 'string' && s.title.toLowerCase().includes('top 5 free ai video generator')))
+          .map((s: Record<string, unknown>) => ({
+            id: s.id as string,
+            tenantId: s.tenant_id as string,
+            noteId: s.note_id as string,
+            sourceType: s.source_type as NoteSource['sourceType'],
+            title: s.title as string,
+            sourceUrl: s.source_url as string | undefined,
+            fileSizeBytes: (s.file_size_bytes as number) || 0,
+            durationSeconds: (s.duration_seconds as number) || 0,
+            rawTranscript: (s.raw_transcript as string) || '',
+            processingStatus: (s.processing_status as NoteSource['processingStatus']) || 'completed',
+            errorMessage: s.error_message as string | undefined,
+            createdAt: s.created_at as string,
+          })),
+        aiArtifacts: (n.ai_artifacts || [])
+          .filter((a: Record<string, unknown>) =>
+            !((a.id as string)?.startsWith('art-yt-')) &&
+            a.id !== 'art-yt-study' &&
+            a.title !== 'AI Video Tools Study Deck' &&
+            !(typeof a.title === 'string' && a.title.toLowerCase().includes('free ai video generator'))
+          )
+          .map((a: Record<string, unknown>) => ({
+            id: a.id as string,
+            tenantId: a.tenant_id as string,
+            noteId: a.note_id as string,
+            userId: a.user_id as string,
+            artifactType: a.artifact_type as AIArtifact['artifactType'],
+            title: a.title as string,
+            content: a.content as AIArtifact['content'],
+            modelUsed: (a.model_used as string) || 'gemini-1.5-pro',
+            tokensConsumed: (a.tokens_consumed as number) || 0,
+            createdAt: a.created_at as string,
+          })),
+        createdAt: n.created_at,
+        updatedAt: n.updated_at,
+      }));
 
     return {
       tenant: {
