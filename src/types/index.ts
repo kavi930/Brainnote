@@ -11,12 +11,17 @@ export type SourceProcessingStatus = 'pending' | 'processing' | 'completed' | 'f
 export type AIArtifactType =
   | 'summary'
   | 'structured_notes'
+  | 'comprehensive_notes'
+  | 'topic_explanation'
   | 'key_takeaways'
   | 'meeting_minutes'
   | 'action_items'
   | 'study_guide'
   | 'flashcards'
   | 'quiz'
+  | 'mcq_bank'
+  | 'short_qa'
+  | 'long_qa'
   | 'qa'
   | 'interview_qa'
   | 'writing_assist'
@@ -28,22 +33,59 @@ export type AIArtifactType =
   | 'decisions'
   | 'audio_overview'
   | 'practical_guide'
+  | 'practical_examples'
+  | 'technical_explanation'
+  | 'critical_analysis'
   | 'concepts';
 
 export type PrimaryNavSection =
+  // WORKSPACE
   | 'home'
-  | 'library'
+  | 'my_research'
   | 'my_notes'
+  | 'library'
   | 'ai_chat'
+  | 'agent_studio'
+  // AI TOOLS
   | 'creation_studio'
   | 'learning_review'
+  | 'research_visualization'
   | 'meetings'
+  // ACCOUNT
+  | 'profile'
   | 'settings'
+  | 'retention'
+  // Utility & legacy views
   | 'web_sources'
   | 'documents'
   | 'videos'
   | 'study_tools'
   | 'interview_prep';
+
+export type RetentionPeriodDays = 7 | 30 | 60 | 90 | -1;
+
+export interface ResearchSession {
+  id: string; // e.g., 'rs-001-machine-learning'
+  sessionNumber: number;
+  title: string;
+  userId: string;
+  tenantId: string;
+  queryOrUploadInfo: string;
+  sourceType?: SourceType;
+  sources: NoteSource[];
+  selectedSourceIds: string[];
+  conversation: NotebookMessage[];
+  artifacts: AIArtifact[];
+  savedNotes: Note[];
+  status: 'active' | 'processing' | 'completed' | 'expired' | 'trashed';
+  isPermanent: boolean;
+  isSaved: boolean;
+  isArchived: boolean;
+  retentionDays: RetentionPeriodDays;
+  createdAt: string;
+  lastActivityAt: string;
+  expiresAt: string;
+}
 
 export interface Tenant {
   id: string;
@@ -224,6 +266,16 @@ export interface AIArtifact {
       consensusPoints: string[];
       divergencePoints: string[];
     };
+    topicExplanation?: {
+      topic: string;
+      breakdown: string;
+      keyPrinciples?: string[];
+    };
+    shortQA?: { question: string; briefAnswer: string; citation?: string }[];
+    longQA?: { question: string; comprehensiveAnalysis: string; evaluationRubric?: string }[];
+    practicalExamples?: { scenario: string; implementation: string; codeSnippet?: string }[];
+    technicalExplanation?: { architecture: string; deepDive: string; edgeCases?: string[] };
+    criticalAnalysis?: { strengths: string[]; limitations: string[]; alternativePerspectives?: string[] };
   };
   modelUsed: string;
   tokensConsumed: number;

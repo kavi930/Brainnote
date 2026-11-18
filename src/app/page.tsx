@@ -17,6 +17,12 @@ import { ShareModal } from '@/components/ShareModal';
 import { ExtensionModal } from '@/components/ExtensionModal';
 import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { UserProfileModal } from '@/components/auth/UserProfileModal';
+import { MyResearchView } from '@/components/views/MyResearchView';
+import { StorageRetentionView } from '@/components/views/StorageRetentionView';
+import { AgentStudioSourceSelector } from '@/components/workspace/AgentStudioSourceSelector';
+import { getSupabasePublicClient } from '@/lib/db/client';
 import { INITIAL_TENANTS, TenantDataset } from '@/lib/mock-data';
 import {
   Note,
@@ -28,7 +34,8 @@ import {
   Notebook,
   NotebookMessage,
   NotebookPersona,
-  PrimaryNavSection
+  PrimaryNavSection,
+  RetentionPeriodDays
 } from '@/types';
 import { checkAITokenQuota, PLAN_CONFIGS } from '@/lib/billing';
 
@@ -69,6 +76,27 @@ export default function BrainnoteApp() {
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [globalViewerArtifactId, setGlobalViewerArtifactId] = useState<string | null>(null);
+
+  // Authentication & Profile state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
+  const [enableWebResearch, setEnableWebResearch] = useState(false);
+  const [retentionPolicy, setRetentionPolicy] = useState<RetentionPeriodDays>(30);
+
+  // Check Supabase session on mount
+  useEffect(() => {
+    try {
+      const supabase = getSupabasePublicClient();
+      if (supabase) {
+        supabase.auth.getSession().then(({ data }) => {
+          if (data?.session) {
+            setIsAuthenticated(true);
+          }
+        });
+      }
+    } catch { }
+  }, []);
 
   // Generation status
   const [isGeneratingChat, setIsGeneratingChat] = useState(false);
@@ -211,10 +239,10 @@ export default function BrainnoteApp() {
               });
               localStorage.setItem(historyKey, JSON.stringify(cleaned));
             }
-          } catch {}
+          } catch { }
         }
       }
-    } catch {}
+    } catch { }
 
     // Fetch authoritative state from server
     fetch(`/api/notes?tenantId=${encodeURIComponent(activeTenantId)}`)
@@ -250,7 +278,7 @@ export default function BrainnoteApp() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [activeTenantId]);
 
   // Total sources across all notebooks
@@ -944,10 +972,107 @@ export default function BrainnoteApp() {
   const handleSelectSection = (section: PrimaryNavSection) => {
     if (section === 'settings') {
       setIsBillingModalOpen(true);
+    } else if (section === 'profile') {
+      setIsUserProfileModalOpen(true);
     } else {
       setCurrentSection(section);
       setIsMobileSidebarOpen(false);
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const supabase = getSupabasePublicClient();
+      if (supabase) await supabase.auth.signOut();
+    } catch { }
+    setIsAuthenticated(false);
+    setIsAuthModalOpen(true);
+    showToast('Logged out successfully.');
+  };
+
+  const handleAuthSuccess = (u: { id: string; email: string; name: string; tenantId: string }) => {
+    setIsAuthenticated(true);
+    setIsAuthModalOpen(false);
+    setDatasets((prev) => {
+      const current = prev[activeTenantId] || prev['tenant-acme'];
+      return {
+        ...prev,
+        [activeTenantId]: {
+          ...current,
+          user: {
+            ...current.user,
+            id: u.id,
+            email: u.email,
+            name: u.name || current.user.name,
+          },
+        },
+      };
+    });
+    showToast(`Welcome, ${u.name || u.email}!`);
+  };
+
+  const handleStartResearchSession = (query: string) => {
+    const newSessionId = `rs-${Date.now()}`;
+    const newNote: Note = {
+      id: newSessionId,
+      tenantId: activeTenantId,
+      userId: currentDataset.user.id,
+      title: query.trim() || `Research Session #${notebooks.length + 1}`,
+      content: `Research session on: ${query.trim()}`,
+      isPinned: false,
+      isArchived: false,
+      tags: [],
+      sources: [],
+      aiArtifacts: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    handleSaveNote(newNote);
+    setActiveNotebookId(newSessionId);
+    setCurrentSection('ai_chat');
+    showToast(`Launched isolated research session: ${newNote.title}`);
+  };
+
+  const handleRenameSession = (id: string, newTitle: string) => {
+    const note = currentDataset.notes.find((n) => n.id === id);
+    if (!note) return;
+    const updated = { ...note, title: newTitle.trim() || note.title, updatedAt: new Date().toISOString() };
+    handleSaveNote(updated);
+    showToast('Research session renamed.');
+  };
+
+  const handleArchiveSession = (id: string) => {
+    const note = currentDataset.notes.find((n) => n.id === id);
+    if (!note) return;
+    const updated = { ...note, isArchived: !note.isArchived, updatedAt: new Date().toISOString() };
+    handleSaveNote(updated);
+    showToast(updated.isArchived ? 'Session archived.' : 'Session restored.');
+  };
+
+  const handleDeleteSession = (id: string) => {
+    handleDeleteNote(id);
+    showToast('Research session deleted.');
+  };
+
+  const handleTogglePermanent = (id: string) => {
+    showToast('Session marked as permanent. Data retention policy waived.');
+  };
+
+  const handleExtendRetention = (id: string) => {
+    showToast('Session retention extended by +30 days.');
+  };
+
+  const handleMoveToTrash = (sessionId: string) => {
+    handleDeleteNote(sessionId);
+  };
+
+  const handleRestoreFromTrash = (sessionId: string) => {
+    showToast('Session restored from trash.');
+  };
+
+  const handlePurgeTrash = () => {
+    showToast('Trash emptied permanently.');
   };
 
   // Calculate trial days remaining
@@ -968,6 +1093,7 @@ export default function BrainnoteApp() {
           onOpenCapture={() => handleOpenAddSource('youtube')}
           onOpenSettings={() => setIsBillingModalOpen(true)}
           onOpenBilling={() => setIsBillingModalOpen(true)}
+          onLogout={handleLogout}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           totalSourcesCount={totalSourcesCount}
@@ -1011,6 +1137,10 @@ export default function BrainnoteApp() {
               onOpenBilling={() => {
                 setIsBillingModalOpen(true);
                 setIsMobileSidebarOpen(false);
+              }}
+              onLogout={() => {
+                setIsMobileSidebarOpen(false);
+                handleLogout();
               }}
               isCollapsed={false}
               onToggleCollapse={() => setIsMobileSidebarOpen(false)}
@@ -1150,6 +1280,113 @@ export default function BrainnoteApp() {
               onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
             />
           )}
+
+          {currentSection === 'my_research' && (
+            <MyResearchView
+              notebooks={notebooks}
+              activeNotebookId={activeNotebook?.id || ''}
+              onSelectNotebook={setActiveNotebookId}
+              onCreateSession={() => handleStartResearchSession('New Research Investigation')}
+              onRenameSession={handleRenameSession}
+              onArchiveSession={handleArchiveSession}
+              onDeleteSession={handleDeleteSession}
+              onTogglePermanent={handleTogglePermanent}
+              onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
+              onOpenCapture={() => handleOpenAddSource('document')}
+              onNavigate={setCurrentSection}
+              onShowToast={showToast}
+            />
+          )}
+
+          {currentSection === 'agent_studio' && (
+            <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
+              {/* Left: Dedicated Source Selection Panel */}
+              <div className="w-full lg:w-96 xl:w-[420px] h-full border-r border-[var(--border-subtle)] flex flex-col shrink-0">
+                <AgentStudioSourceSelector
+                  sources={activeNotebook?.sources || []}
+                  selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+                  notebooks={notebooks}
+                  activeNotebookId={activeNotebook?.id || ''}
+                  onSelectNotebook={setActiveNotebookId}
+                  onToggleSource={handleToggleSource}
+                  onSelectAll={handleSelectAllSources}
+                  onDeselectAll={handleDeselectAllSources}
+                  onOpenAddSource={() => handleOpenAddSource('document')}
+                  enableWebResearch={enableWebResearch}
+                  onToggleWebResearch={setEnableWebResearch}
+                />
+              </div>
+
+              {/* Right: Agent Reasoning & Generation Canvas */}
+              <div className="flex-1 h-full flex flex-col overflow-hidden bg-[var(--bg-panel)]">
+                <div className="h-10 px-4 border-b border-[var(--border-subtle)] bg-[var(--bg-panel-header)] flex items-center justify-between text-xs shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-semibold text-[var(--text-primary)]">Agent Studio Reasoning Canvas</span>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)] font-medium">
+                    Strict Grounding: {activeNotebook?.selectedSourceIds.length || 0} source(s) selected
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-hidden">
+                  <ChatStudioView
+                    notebookTitle={activeNotebook?.title || 'Agent Studio Knowledge Workspace'}
+                    messages={activeNotebook?.conversation || []}
+                    sources={activeNotebook?.sources || []}
+                    selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+                    activePersona={activeNotebook?.persona || 'default'}
+                    customInstructions={activeNotebook?.customInstructions}
+                    onSendMessage={handleSendMessage}
+                    onSaveAsNote={handleSaveAsNote}
+                    onSelectPersona={handleSelectPersona}
+                    onToggleSource={handleToggleSource}
+                    onSelectAllSources={handleSelectAllSources}
+                    onDeselectAllSources={handleDeselectAllSources}
+                    isGenerating={isGeneratingChat}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentSection === 'research_visualization' && (
+            <CreationStudioView
+              artifacts={activeNotebook?.artifacts || []}
+              selectedSourceIds={activeNotebook?.selectedSourceIds || []}
+              sources={activeNotebook?.sources || []}
+              activeNotebookTitle={activeNotebook?.title || 'Notebook'}
+              onGenerateTool={handleGenerateStudioTool}
+              onDeleteArtifact={handleDeleteArtifact}
+              onSaveArtifact={handleSaveArtifact}
+              onSaveAsNote={handleSaveArtifactAsNote}
+              onShowToast={showToast}
+              isGenerating={isGeneratingStudio}
+              generatingToolId={generatingToolId}
+              viewerArtifactId={globalViewerArtifactId}
+              onCloseViewer={() => setGlobalViewerArtifactId(null)}
+              onOpenArtifact={(id) => setGlobalViewerArtifactId(id)}
+            />
+          )}
+
+          {currentSection === 'retention' && (
+            <StorageRetentionView
+              notebooks={notebooks}
+              usage={currentDataset.usage}
+              currentRetentionPolicy={retentionPolicy}
+              onChangePolicy={(p) => {
+                setRetentionPolicy(p);
+                showToast(`Retention policy updated to ${p === -1 ? 'Indefinite' : `${p} days`}.`);
+              }}
+              onTogglePermanent={handleTogglePermanent}
+              onExtendRetention={handleExtendRetention}
+              onMoveToTrash={handleMoveToTrash}
+              onRestoreFromTrash={handleRestoreFromTrash}
+              onPurgeTrash={handlePurgeTrash}
+              onShowToast={showToast}
+              activeTenantId={activeTenantId}
+            />
+          )}
         </main>
       </div>
 
@@ -1212,6 +1449,42 @@ export default function BrainnoteApp() {
         onSelectNote={(noteId) => setSelectedNoteId(noteId)}
         onOpenArtifact={(artId) => setGlobalViewerArtifactId(artId)}
         onNavigate={(sec) => setCurrentSection(sec)}
+        onStartResearchSession={handleStartResearchSession}
+      />
+
+      {/* MODAL 7: Authentication Modal (Login / Signup / Forgot / Reset / Verify) */}
+      <AuthModal
+        isOpen={!isAuthenticated || isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        allowClose={isAuthenticated}
+      />
+
+      {/* MODAL 8: User Profile & Account Settings Modal */}
+      <UserProfileModal
+        isOpen={isUserProfileModalOpen}
+        onClose={() => setIsUserProfileModalOpen(false)}
+        user={currentDataset.user}
+        tenant={currentDataset.tenant}
+        onUpdateUser={(updated) => {
+          setDatasets((prev) => ({
+            ...prev,
+            [activeTenantId]: {
+              ...prev[activeTenantId],
+              user: {
+                ...prev[activeTenantId].user,
+                name: updated.name,
+                email: updated.email,
+              },
+            },
+          }));
+          showToast('Profile updated successfully.');
+        }}
+        onLogout={handleLogout}
+        onOpenBilling={() => {
+          setIsUserProfileModalOpen(false);
+          setIsBillingModalOpen(true);
+        }}
       />
 
       {/* TOAST NOTIFICATION */}

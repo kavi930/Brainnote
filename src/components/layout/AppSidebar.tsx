@@ -1,21 +1,28 @@
 'use client';
 
 import React from 'react';
-import { 
-  Home, 
-  BookOpen, 
-  MessageSquare, 
-  Sparkles, 
-  GraduationCap, 
-  Mic, 
-  Settings as SettingsIcon, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Home,
+  BookOpen,
+  MessageSquare,
+  Sparkles,
+  GraduationCap,
+  Mic,
+  Settings as SettingsIcon,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
   BookMarked,
   Crown,
   ChevronDown,
-  FileText
+  FileText,
+  Bot,
+  Network,
+  User as UserIcon,
+  HardDrive,
+  LogOut,
+  Compass,
+  Layers
 } from 'lucide-react';
 import { PrimaryNavSection, Notebook } from '@/types';
 import { ThemeToggle } from '../workspace/ThemeToggle';
@@ -30,6 +37,7 @@ interface AppSidebarProps {
   onOpenCapture: () => void;
   onOpenSettings: () => void;
   onOpenBilling: () => void;
+  onLogout?: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   totalSourcesCount: number;
@@ -50,6 +58,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onOpenCapture,
   onOpenSettings,
   onOpenBilling,
+  onLogout,
   isCollapsed,
   onToggleCollapse,
   totalSourcesCount,
@@ -61,15 +70,70 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const [isNotebookMenuOpen, setIsNotebookMenuOpen] = React.useState(false);
 
-  const navItems: { section: PrimaryNavSection; label: string; icon: React.ReactNode; badge?: string | number }[] = [
-    { section: 'home', label: 'Home', icon: <Home size={18} /> },
-    { section: 'library', label: 'Knowledge Library', icon: <BookOpen size={18} />, badge: totalSourcesCount },
-    { section: 'my_notes', label: 'My Notes', icon: <FileText size={18} />, badge: notesCount },
-    { section: 'ai_chat', label: 'AI Chat Studio', icon: <MessageSquare size={18} /> },
-    { section: 'creation_studio', label: 'AI Creation Studio', icon: <Sparkles size={18} /> },
-    { section: 'learning_review', label: 'Learning & Review', icon: <GraduationCap size={18} /> },
-    { section: 'meetings', label: 'Meeting Intelligence', icon: <Mic size={18} /> },
+  // Group 1: WORKSPACE
+  const workspaceItems: { section: PrimaryNavSection; label: string; icon: React.ReactNode; badge?: string | number }[] = [
+    { section: 'home', label: 'Home', icon: <Home size={16} /> },
+    { section: 'my_research', label: 'My Research', icon: <Compass size={16} /> },
+    { section: 'my_notes', label: 'My Notes', icon: <FileText size={16} />, badge: notesCount },
+    { section: 'library', label: 'Research Library', icon: <BookOpen size={16} />, badge: totalSourcesCount },
+    { section: 'ai_chat', label: 'AI Chat Studio', icon: <MessageSquare size={16} /> },
+    { section: 'agent_studio', label: 'Agent Studio', icon: <Bot size={16} /> },
   ];
+
+  // Group 2: AI TOOLS
+  const aiToolItems: { section: PrimaryNavSection; label: string; icon: React.ReactNode }[] = [
+    { section: 'creation_studio', label: 'AI Creation Studio', icon: <Sparkles size={16} /> },
+    { section: 'learning_review', label: 'Learning & Active Recall', icon: <GraduationCap size={16} /> },
+    { section: 'research_visualization', label: 'Research & Visualization', icon: <Network size={16} /> },
+    { section: 'meetings', label: 'Meeting Intelligence', icon: <Mic size={16} /> },
+  ];
+
+  // Group 3: ACCOUNT
+  const accountItems: { section: PrimaryNavSection; label: string; icon: React.ReactNode }[] = [
+    { section: 'profile', label: 'Profile', icon: <UserIcon size={16} /> },
+    { section: 'settings', label: 'Settings', icon: <SettingsIcon size={16} /> },
+    { section: 'retention', label: 'Storage & Retention', icon: <HardDrive size={16} /> },
+  ];
+
+  const renderNavButton = (
+    section: PrimaryNavSection,
+    label: string,
+    icon: React.ReactNode,
+    badge?: string | number
+  ) => {
+    const isActive = currentSection === section;
+    return (
+      <button
+        key={section}
+        onClick={() => onSelectSection(section)}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+          isActive
+            ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] font-bold'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)]'
+        } ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`}
+        title={isCollapsed ? label : undefined}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}>
+            {icon}
+          </span>
+          {!isCollapsed && <span className="truncate">{label}</span>}
+        </div>
+
+        {!isCollapsed && typeof badge !== 'undefined' && (
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+              isActive
+                ? 'bg-[var(--accent-primary)] text-white'
+                : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'
+            }`}
+          >
+            {badge}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   return (
     <aside
@@ -206,47 +270,50 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </div>
       )}
 
-      {/* 4. Primary Navigation Items */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
-        {!isCollapsed && (
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
-            Workspace
-          </div>
-        )}
-        {navItems.map((item) => {
-          const isActive = currentSection === item.section;
-          return (
-            <button
-              key={item.section}
-              onClick={() => onSelectSection(item.section)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                isActive
-                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] font-bold'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)]'
-              } ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className={isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}>
-                  {item.icon}
-                </span>
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
-              </div>
+      {/* 4. Primary Navigation Items (Structured into 3 exact groups) */}
+      <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-4">
+        {/* GROUP 1: WORKSPACE */}
+        <div className="space-y-0.5">
+          {!isCollapsed && (
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+              Workspace
+            </div>
+          )}
+          {workspaceItems.map((item) => renderNavButton(item.section, item.label, item.icon, item.badge))}
+        </div>
 
-              {!isCollapsed && typeof item.badge !== 'undefined' && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                    isActive
-                      ? 'bg-[var(--accent-primary)] text-white'
-                      : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
+        {/* GROUP 2: AI TOOLS */}
+        <div className="space-y-0.5">
+          {!isCollapsed && (
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+              AI Tools
+            </div>
+          )}
+          {aiToolItems.map((item) => renderNavButton(item.section, item.label, item.icon))}
+        </div>
+
+        {/* GROUP 3: ACCOUNT */}
+        <div className="space-y-0.5">
+          {!isCollapsed && (
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+              Account
+            </div>
+          )}
+          {accountItems.map((item) => renderNavButton(item.section, item.label, item.icon))}
+          
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ${
+                isCollapsed ? 'justify-center px-0' : 'justify-start'
+              }`}
+              title={isCollapsed ? 'Log out' : undefined}
+            >
+              <LogOut size={16} />
+              {!isCollapsed && <span>Log out</span>}
             </button>
-          );
-        })}
+          )}
+        </div>
       </nav>
 
       {/* 5. Subscription Status & Trial Bar */}
@@ -280,7 +347,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <div className="p-2.5 border-t border-[var(--border-subtle)] shrink-0 flex items-center justify-between gap-1">
         {!isCollapsed ? (
           <>
-            <div className="flex items-center gap-2 min-w-0">
+            <div 
+              className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onSelectSection('profile')}
+              title="View Profile"
+            >
               <div className="w-7 h-7 rounded-full bg-[var(--accent-primary-light)] text-[var(--accent-primary)] font-bold text-xs flex items-center justify-center shrink-0">
                 {userName.charAt(0)}
               </div>
@@ -299,7 +370,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               <button
                 onClick={onOpenSettings}
                 className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
-                title="Settings & Billing"
+                title="Settings & Retention"
               >
                 <SettingsIcon size={16} />
               </button>
@@ -311,7 +382,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <button
               onClick={onOpenSettings}
               className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
-              title="Settings & Billing"
+              title="Settings & Retention"
             >
               <SettingsIcon size={16} />
             </button>
@@ -321,4 +392,3 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     </aside>
   );
 };
-

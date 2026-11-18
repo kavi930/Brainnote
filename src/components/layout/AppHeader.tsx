@@ -31,13 +31,18 @@ interface AppHeaderProps {
 
 const SECTION_TITLES: Record<PrimaryNavSection, { title: string; subtitle: string }> = {
   home: { title: 'Workspace Home', subtitle: 'Overview, recent sources & learning activity' },
+  my_research: { title: 'My Research', subtitle: 'Isolated research sessions, topic investigations & documents' },
   library: { title: 'Knowledge Library', subtitle: 'Search, manage and ground your ingested knowledge' },
   my_notes: { title: 'My Notes', subtitle: 'Distraction-free Markdown notepad with AI writing assistance' },
   ai_chat: { title: 'AI Chat Studio', subtitle: 'Conversational reasoning strictly grounded in selected sources' },
+  agent_studio: { title: 'Agent Studio', subtitle: 'Multi-source selection & agentic reasoning canvas' },
   creation_studio: { title: 'AI Creation Studio', subtitle: 'Synthesize summaries, study guides, and visual knowledge' },
-  learning_review: { title: 'Learning & Review', subtitle: 'Active recall flashcards, practice quizzes, and interview prep' },
+  learning_review: { title: 'Learning & Active Recall', subtitle: 'Active recall flashcards, practice quizzes, and interview prep' },
+  research_visualization: { title: 'Research & Visualization', subtitle: 'Concept maps, timelines, and multi-source matrices' },
   meetings: { title: 'Meeting Intelligence', subtitle: 'Audio recordings, speaker notes, and meeting decisions' },
-  settings: { title: 'Workspace Settings', subtitle: 'Manage billing, team members, and data export' },
+  profile: { title: 'User Profile', subtitle: 'Manage your profile and authentication credentials' },
+  settings: { title: 'Workspace Settings', subtitle: 'Manage billing, team members, and preferences' },
+  retention: { title: 'Storage & Retention', subtitle: 'Data retention policies, automated cleanup, and trash recovery' },
   web_sources: { title: 'Web Sources', subtitle: 'Web clippings and research articles' },
   documents: { title: 'Documents', subtitle: 'PDFs, PowerPoint slides and docs' },
   videos: { title: 'Video Intelligence', subtitle: 'YouTube and video lectures' },
@@ -103,7 +108,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </button>
 
         {/* Global Search Input (Desktop) */}
-        <div 
+        <div
           onClick={onOpenSearchModal}
           className="relative hidden sm:flex items-center w-44 md:w-60 lg:w-72 cursor-pointer group"
         >

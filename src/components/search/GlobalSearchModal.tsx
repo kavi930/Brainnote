@@ -34,6 +34,7 @@ interface GlobalSearchModalProps {
   onSelectNote: (noteId: string) => void;
   onOpenArtifact: (artifactId: string) => void;
   onNavigate: (section: PrimaryNavSection) => void;
+  onStartResearchSession?: (query: string) => void;
 }
 
 const RECENT_SEARCHES_KEY = 'brainnote_recent_searches';
@@ -49,6 +50,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   onSelectNote,
   onOpenArtifact,
   onNavigate,
+  onStartResearchSession,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -286,6 +288,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') onClose();
+              if (e.key === 'Enter' && searchQuery.trim() && onStartResearchSession) {
+                onStartResearchSession(searchQuery.trim());
+                recordSearch(searchQuery.trim());
+                onClose();
+              }
             }}
             className="flex-1 bg-transparent border-none text-sm text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-faint)]"
           />
@@ -302,6 +309,29 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             ESC
           </span>
         </div>
+
+        {/* B. Launch Research Session Banner */}
+        {searchQuery.trim() && onStartResearchSession && (
+          <div className="px-4 py-2.5 bg-[var(--accent-primary-light)]/40 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={14} className="text-[var(--accent-primary)] shrink-0" />
+              <span className="text-xs text-[var(--text-primary)] truncate">
+                Launch dedicated research session: <strong className="text-[var(--accent-primary)]">{searchQuery.trim()}</strong>
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                onStartResearchSession(searchQuery.trim());
+                recordSearch(searchQuery.trim());
+                onClose();
+              }}
+              className="px-3 py-1 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-xs font-semibold rounded-lg shrink-0 flex items-center gap-1.5 shadow-xs transition-colors"
+            >
+              <span>Start Session</span>
+              <ArrowRight size={12} />
+            </button>
+          </div>
+        )}
 
         {/* 2. Content Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">

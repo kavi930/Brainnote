@@ -4,8 +4,8 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  generateSummary, 
+import {
+  generateSummary,
   generateStructuredNotes,
   generateConceptMap,
   generateMindMap,
@@ -13,11 +13,17 @@ import {
   generateCompareSources,
   generateGlossary,
   generateAudioOverview,
-  generateMeetingMinutes, 
-  generateActionItems, 
-  generateFlashcards, 
+  generateMeetingMinutes,
+  generateActionItems,
+  generateFlashcards,
   generateQuiz,
   generateInterviewQA,
+  generateDetailedTopicExplanation,
+  generateShortAnswerQuestions,
+  generateLongAnswerQuestions,
+  generatePracticalExamples,
+  generateTechnicalExplanation,
+  generateCriticalAnalysis,
   answerQuestionGrounded,
   assistWriting
 } from '@/lib/ai-provider';
@@ -27,13 +33,13 @@ import { AIArtifact, AIArtifactType } from '@/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { 
-      noteId, 
-      title, 
-      content, 
-      artifactType, 
-      tenantId, 
-      sourceTranscript, 
+    const {
+      noteId,
+      title,
+      content,
+      artifactType,
+      tenantId,
+      sourceTranscript,
       question,
       splitOptions = true
     } = body;
@@ -144,8 +150,8 @@ export async function POST(req: NextRequest) {
       primaryArtifact = doc1;
     }
 
-    // 2. STRUCTURED NOTES (Dedicated)
-    else if (artifactType === 'structured_notes') {
+    // 2. STRUCTURED & COMPREHENSIVE NOTES (Dedicated)
+    else if (artifactType === 'structured_notes' || artifactType === 'comprehensive_notes') {
       const res = await generateStructuredNotes(effectiveTitle, content || '');
       tokensUsed += res.tokensUsed;
 
@@ -237,8 +243,8 @@ export async function POST(req: NextRequest) {
       await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
     }
 
-    // 6. INTERACTIVE QUIZ
-    else if (artifactType === 'quiz') {
+    // 6. INTERACTIVE QUIZ & MCQ QUESTION BANK
+    else if (artifactType === 'quiz' || artifactType === 'mcq_bank') {
       const res = await generateQuiz(effectiveTitle, content || '');
       tokensUsed += res.tokensUsed;
 
@@ -507,7 +513,133 @@ export async function POST(req: NextRequest) {
       await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
     }
 
-    // 16. Q&A
+    // 16. DETAILED TOPIC-WISE EXPLANATION
+    else if (artifactType === 'topic_explanation') {
+      const res = await generateDetailedTopicExplanation(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-topic`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'topic_explanation',
+        title: `Detailed Topic Explanation: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 17. SHORT ANSWER QUESTIONS
+    else if (artifactType === 'short_qa') {
+      const res = await generateShortAnswerQuestions(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-shortqa`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'short_qa',
+        title: `Short Answer Questions: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 18. LONG ANSWER QUESTIONS
+    else if (artifactType === 'long_qa') {
+      const res = await generateLongAnswerQuestions(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-longqa`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'long_qa',
+        title: `Long Answer Questions: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 19. PRACTICAL EXAMPLES
+    else if (artifactType === 'practical_examples') {
+      const res = await generatePracticalExamples(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-practical`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'practical_examples',
+        title: `Practical Examples: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 20. TECHNICAL EXPLANATION
+    else if (artifactType === 'technical_explanation') {
+      const res = await generateTechnicalExplanation(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-techexplanation`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'technical_explanation',
+        title: `Technical Explanation: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 21. CRITICAL ANALYSIS
+    else if (artifactType === 'critical_analysis') {
+      const res = await generateCriticalAnalysis(effectiveTitle, content || '');
+      tokensUsed += res.tokensUsed;
+
+      primaryArtifact = {
+        id: `art-${baseTimestamp}-critical`,
+        tenantId,
+        noteId,
+        userId: 'user-server-resolved',
+        artifactType: 'critical_analysis',
+        title: `Critical Analysis: ${effectiveTitle}`,
+        content: res.result,
+        modelUsed: res.modelUsed,
+        tokensConsumed: res.tokensUsed,
+        createdAt: now,
+      };
+      createdArtifacts.push(primaryArtifact);
+      await updateNoteArtifactAsync(tenantId, noteId, primaryArtifact);
+    }
+
+    // 22. Q&A
     else if (artifactType === 'qa') {
       const query = question || 'What are the essential concepts and takeaways?';
       const res = await answerQuestionGrounded(query, effectiveTitle, content || '', sourceTranscript);

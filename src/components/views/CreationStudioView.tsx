@@ -25,7 +25,10 @@ import {
   ChevronRight,
   Share2,
   ExternalLink,
-  Plus
+  Plus,
+  Code,
+  ListChecks,
+  ShieldAlert
 } from 'lucide-react';
 import { AIArtifact, NoteSource, AIArtifactType } from '@/types';
 import { DocumentViewerModal } from '@/components/document/DocumentViewerModal';
@@ -64,95 +67,127 @@ interface ToolCategory {
 const TOOL_CATEGORIES: ToolCategory[] = [
   {
     id: 'notes_summaries',
-    title: 'A. Notes & Summaries',
+    title: 'A. Comprehensive Notes & Summaries',
     description: 'Transform raw transcripts and literature into structured enterprise briefs',
     tools: [
+      {
+        id: 'comprehensive_notes',
+        artifactType: 'comprehensive_notes',
+        title: 'Comprehensive Notes',
+        description: 'Multi-section publication-grade notes covering every core topic, principle, and evidence.',
+        icon: <BookOpen size={18} className="text-[var(--accent-primary)]" />,
+        tokensEst: 1800,
+      },
       {
         id: 'summary',
         artifactType: 'summary',
         title: 'Executive Summary',
-        description: 'Concise high-level overview highlighting core conclusions.',
-        icon: <FileText size={18} className="text-[var(--accent-primary)]" />,
+        description: 'Concise high-level overview highlighting core conclusions and context.',
+        icon: <FileText size={18} className="text-cyan-500" />,
         tokensEst: 800,
       },
       {
-        id: 'structured_notes',
-        artifactType: 'structured_notes',
-        title: 'Structured Notes',
-        description: 'Hierarchical breakdown arranged logically by topic and section.',
-        icon: <ListOrdered size={18} className="text-cyan-500" />,
-        tokensEst: 1100,
+        id: 'topic_explanation',
+        artifactType: 'topic_explanation',
+        title: 'Detailed Topic Explanation',
+        description: 'Pedagogical step-by-step breakdown of fundamental themes and core concepts.',
+        icon: <BookOpen size={18} className="text-indigo-500" />,
+        tokensEst: 1400,
       },
       {
         id: 'key_takeaways',
         artifactType: 'key_takeaways',
         title: 'Key Takeaways',
-        description: 'High-signal bullet points engineered for fast retention.',
+        description: 'High-signal bullet points engineered for fast retention and decision-making.',
         icon: <CheckSquare size={18} className="text-emerald-500" />,
         tokensEst: 650,
       },
       {
-        id: 'action_items',
-        artifactType: 'action_items',
-        title: 'Action Items',
-        description: 'Actionable to-dos with suggested owners and priorities.',
-        icon: <CheckSquare size={18} className="text-rose-500" />,
-        tokensEst: 750,
+        id: 'technical_explanation',
+        artifactType: 'technical_explanation',
+        title: 'Technical Explanation',
+        description: 'Architectural deep-dive, deterministic state invariants, and edge cases.',
+        icon: <Code size={18} className="text-sky-500" />,
+        tokensEst: 1600,
+      },
+      {
+        id: 'critical_analysis',
+        artifactType: 'critical_analysis',
+        title: 'Critical Analysis',
+        description: 'Rigorous appraisal of architectural strengths, limitations, and trade-offs.',
+        icon: <ShieldAlert size={18} className="text-rose-500" />,
+        tokensEst: 1300,
       },
     ],
   },
   {
     id: 'learning',
     title: 'B. Learning & Active Recall',
-    description: 'Pedagogical synthesis for rapid comprehension and memorization',
+    description: 'Pedagogical synthesis for rapid comprehension, memorization and skill building',
     tools: [
       {
         id: 'study_guide',
         artifactType: 'study_guide',
-        title: 'Study Guide',
-        description: 'Comprehensive curriculum with essential terms and summaries.',
+        title: 'Study Guide & Curriculum',
+        description: 'Comprehensive curriculum with essential terms, key topics, and summaries.',
         icon: <BookOpen size={18} className="text-indigo-500" />,
-        tokensEst: 1400,
-      },
-      {
-        id: 'faq',
-        artifactType: 'qa',
-        title: 'FAQs & Core Concepts',
-        description: 'Anticipated learner questions answered with citations.',
-        icon: <HelpCircle size={18} className="text-teal-500" />,
-        tokensEst: 950,
+        tokensEst: 1500,
       },
       {
         id: 'flashcards',
         artifactType: 'flashcards',
         title: 'Flashcards Study Deck',
-        description: 'Question & answer active recall cards for memory reinforcement.',
+        description: 'Active recall front/back cards with memory-reinforcement hints.',
         icon: <Layers size={18} className="text-violet-500" />,
         tokensEst: 1200,
       },
       {
-        id: 'quiz',
-        artifactType: 'quiz',
-        title: 'Interactive Quiz',
-        description: 'Multiple-choice test questions with answer explanations.',
+        id: 'mcq_bank',
+        artifactType: 'mcq_bank',
+        title: 'MCQ Question Bank',
+        description: 'Multiple-choice practice questions with detailed answer explanations.',
         icon: <BrainCircuit size={18} className="text-sky-500" />,
+        tokensEst: 1400,
+      },
+      {
+        id: 'short_qa',
+        artifactType: 'short_qa',
+        title: 'Short Answer Questions',
+        description: 'Concise check-for-understanding questions with grounded answers.',
+        icon: <ListChecks size={18} className="text-teal-500" />,
+        tokensEst: 1000,
+      },
+      {
+        id: 'long_qa',
+        artifactType: 'long_qa',
+        title: 'Long Answer Questions',
+        description: 'In-depth conceptual essay questions with comprehensive evaluation rubrics.',
+        icon: <HelpCircle size={18} className="text-amber-500" />,
+        tokensEst: 1500,
+      },
+      {
+        id: 'interview_qa',
+        artifactType: 'interview_qa',
+        title: 'Interview Q&A Studio',
+        description: 'Staff & senior technical interview scenarios with model answers and rubrics.',
+        icon: <Briefcase size={18} className="text-purple-500" />,
+        tokensEst: 1600,
+      },
+      {
+        id: 'practical_examples',
+        artifactType: 'practical_examples',
+        title: 'Practical Examples',
+        description: 'Real-world production scenarios, implementation patterns, and code snippets.',
+        icon: <Code size={18} className="text-emerald-500" />,
         tokensEst: 1300,
       },
       {
-        id: 'revision_notes',
-        artifactType: 'study_guide',
-        title: 'Revision Cheat-Sheet',
-        description: 'Ultra-concentrated notes for sprint or exam prep.',
-        icon: <FileText size={18} className="text-purple-500" />,
-        tokensEst: 900,
-      },
-      {
-        id: 'interview_prep',
-        artifactType: 'interview_qa',
-        title: 'Technical Interview Preparation',
-        description: 'Domain interview questions with evaluation rubrics and answers.',
-        icon: <Briefcase size={18} className="text-amber-500" />,
-        tokensEst: 1500,
+        id: 'glossary',
+        artifactType: 'glossary',
+        title: 'Domain Glossary',
+        description: 'Alphabetical reference guide of key terms, acronyms, and definitions.',
+        icon: <BookOpen size={18} className="text-cyan-500" />,
+        tokensEst: 800,
       },
     ],
   },
@@ -193,14 +228,6 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         icon: <Clock size={18} className="text-amber-500" />,
         tokensEst: 700,
       },
-      {
-        id: 'glossary',
-        artifactType: 'glossary',
-        title: 'Domain Glossary',
-        description: 'Alphabetical reference guide of key terms and abbreviations.',
-        icon: <BookOpen size={18} className="text-cyan-500" />,
-        tokensEst: 800,
-      },
     ],
   },
   {
@@ -223,6 +250,14 @@ const TOOL_CATEGORIES: ToolCategory[] = [
         description: 'Explicit log of agreed architecture, design, and roadmap choices.',
         icon: <CheckSquare size={18} className="text-emerald-500" />,
         tokensEst: 700,
+      },
+      {
+        id: 'action_items',
+        artifactType: 'action_items',
+        title: 'Action Items',
+        description: 'Actionable to-dos with suggested owners and priorities.',
+        icon: <CheckSquare size={18} className="text-rose-500" />,
+        tokensEst: 750,
       },
       {
         id: 'audio_overview',
@@ -315,8 +350,8 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
 
         <div className="flex items-center gap-2">
           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedCount > 0
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
             }`}>
             {selectedCount > 0 ? `${selectedCount} sources selected for grounding` : '0 sources selected (Check sources in library)'}
           </span>
@@ -384,8 +419,8 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
         <button
           onClick={() => setActiveCategory('all')}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${activeCategory === 'all'
-              ? 'bg-[var(--accent-primary)] text-white'
-              : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
+            ? 'bg-[var(--accent-primary)] text-white'
+            : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
             }`}
         >
           All Categories (18 Tools)
@@ -395,8 +430,8 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
             className={`px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 ${activeCategory === cat.id
-                ? 'bg-[var(--accent-primary)] text-white'
-                : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
+              ? 'bg-[var(--accent-primary)] text-white'
+              : 'bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-subtle)]'
               }`}
           >
             {cat.title}
@@ -448,10 +483,10 @@ export const CreationStudioView: React.FC<CreationStudioViewProps> = ({
                         onClick={() => onGenerateTool(tool.id)}
                         disabled={isGenerating || selectedCount === 0}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isThisToolGenerating
-                            ? 'bg-[var(--accent-primary)] text-white opacity-80 cursor-wait'
-                            : selectedCount === 0
-                              ? 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] cursor-not-allowed opacity-60'
-                              : 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xs cursor-pointer'
+                          ? 'bg-[var(--accent-primary)] text-white opacity-80 cursor-wait'
+                          : selectedCount === 0
+                            ? 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] cursor-not-allowed opacity-60'
+                            : 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xs cursor-pointer'
                           }`}
                         title={selectedCount === 0 ? 'Select at least one source first' : `Generate ${tool.title}`}
                       >

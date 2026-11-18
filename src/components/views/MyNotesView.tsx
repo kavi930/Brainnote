@@ -42,9 +42,17 @@ import {
   FileText,
   FileCode,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Eye,
+  Edit3,
+  Save,
+  FileDown,
+  Archive,
+  FolderSymlink,
+  Check
 } from 'lucide-react';
 import { Note, NoteSource, Notebook, Tag, Folder } from '@/types';
+import { RichDocumentContent } from '@/components/document/RichDocumentContent';
 
 interface MyNotesViewProps {
   notes: Note[];
@@ -99,6 +107,11 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<NoteSortOption>('updated');
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
+
+  // View Mode: 'document' (formatted rich-text preview, zero raw markdown) vs 'editor' (raw markdown editing)
+  const [viewMode, setViewMode] = useState<'document' | 'editor'>('document');
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Editor State
   const [activeTitle, setActiveTitle] = useState('');
@@ -469,10 +482,100 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
     window.print();
   };
 
+  const handleManualSave = () => {
+    if (!currentNote) return;
+    const updatedNote: Note = {
+      ...currentNote,
+      title: activeTitle.trim() || 'Untitled Note',
+      content: activeContent,
+      updatedAt: new Date().toISOString(),
+    };
+    onSaveNote(updatedNote);
+    setSaveStatus('saved');
+    setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    onShowToast('Note saved successfully.');
+  };
+
+  const handleCopyContent = () => {
+    if (!currentNote) return;
+    navigator.clipboard.writeText(`${activeTitle}\n\n${activeContent}`);
+    onShowToast('Note copied to clipboard.');
+  };
+
+  const handleDownloadDocx = () => {
+    if (!currentNote) return;
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${activeTitle}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #1e293b; margin: 40px; }
+  h1 { font-size: 22pt; color: #0f172a; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 16px; }
+  h2 { font-size: 16pt; color: #1e293b; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+  h3 { font-size: 13pt; color: #334155; margin-top: 18px; margin-bottom: 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 24px; }
+  li { margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+  th { background-color: #f8fafc; font-weight: bold; color: #0f172a; }
+  code { font-family: Consolas, monospace; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 10pt; }
+  pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; overflow-x: auto; font-family: Consolas, monospace; }
+  blockquote { border-left: 4px solid #3b82f6; padding-left: 12px; margin: 12px 0; color: #475569; font-style: italic; }
+</style>
+</head>
+<body>
+  <h1>${activeTitle}</h1>
+  <div>${activeContent
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')}</div>
+</body>
+</html>`;
+    const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${activeTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'note'}.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
+    onShowToast('Downloaded Word document (.doc).');
+  };
+
+  const handleToggleArchive = (noteToArchive?: Note) => {
+    const target = noteToArchive || currentNote;
+    if (!target) return;
+    const updated: Note = {
+      ...target,
+      isArchived: !target.isArchived,
+      updatedAt: new Date().toISOString(),
+    };
+    onSaveNote(updated);
+    onShowToast(updated.isArchived ? 'Note moved to archive.' : 'Note unarchived.');
+  };
+
+  const handleMoveToNotebook = (targetNotebookId: string) => {
+    if (!currentNote) return;
+    const targetNb = notebooks.find((nb) => nb.id === targetNotebookId);
+    const updated: Note = {
+      ...currentNote,
+      folderId: targetNotebookId,
+      updatedAt: new Date().toISOString(),
+    };
+    onSaveNote(updated);
+    setIsMoveOpen(false);
+    onShowToast(`Moved note to "${targetNb?.title || 'Notebook'}"`);
+  };
+
   // Filtered & Sorted Notes list
   const filteredNotes = useMemo(() => {
     return notes
       .filter((n) => {
+        if (!showArchived && n.isArchived) return false;
+        if (showArchived && !n.isArchived) return false;
         if (showPinnedOnly && !n.isPinned) return false;
         if (selectedFolder !== 'f-all' && n.folderId !== selectedFolder) return false;
         if (searchQuery.trim()) {
@@ -624,6 +727,17 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
                   <Pin size={13} />
                 </button>
 
+                <button
+                  onClick={() => setShowArchived(!showArchived)}
+                  className={`p-1 rounded ${showArchived
+                    ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                  title={showArchived ? 'Showing archived notes (Click to view active)' : 'Show archived notes'}
+                >
+                  <Archive size={13} />
+                </button>
+
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as NoteSortOption)}
@@ -734,178 +848,289 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
             <>
               {/* Editor Top Bar: Autosave Pill, Word Count & Export Actions */}
               <div className="h-12 border-b border-[var(--border-subtle)] bg-[var(--bg-panel-header)] px-4 flex items-center justify-between gap-2 shrink-0">
-                {/* Autosave Status Pill */}
-                <div className="flex items-center gap-2 text-xs">
-                  {saveStatus === 'saving' && (
-                    <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                      <Clock size={12} className="animate-spin" />
-                      <span>Saving...</span>
-                    </span>
-                  )}
-                  {saveStatus === 'saved' && (
-                    <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
-                      <CheckCircle2 size={12} />
-                      <span>Saved ({lastSavedTime})</span>
-                    </span>
-                  )}
-                  {saveStatus === 'offline' && (
-                    <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                      <AlertCircle size={12} />
-                      <span>Saved locally (Offline)</span>
-                    </span>
-                  )}
+                {/* Left: View Mode Toggle & Status */}
+                <div className="flex items-center gap-2 text-xs overflow-x-auto">
+                  {/* Segmented Mode Switcher */}
+                  <div className="flex items-center bg-[var(--bg-input)] p-0.5 rounded-lg border border-[var(--border-subtle)] shrink-0">
+                    <button
+                      onClick={() => setViewMode('document')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                        viewMode === 'document'
+                          ? 'bg-[var(--accent-primary)] text-white shadow-xs'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                      title="Document View: Publication grade formatted document without raw markdown"
+                    >
+                      <Eye size={13} />
+                      <span>Document View</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('editor')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                        viewMode === 'editor'
+                          ? 'bg-[var(--accent-primary)] text-white shadow-xs'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                      title="Editor Mode: Edit Markdown content directly"
+                    >
+                      <Edit3 size={13} />
+                      <span>Editor</span>
+                    </button>
+                  </div>
 
-                  <span className="text-[var(--border-medium)]">|</span>
-                  <span className="text-[var(--text-muted)] text-[11px]">
+                  {/* Autosave Status Pill */}
+                  <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+                    {saveStatus === 'saving' && (
+                      <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                        <Clock size={12} className="animate-spin" />
+                        <span>Saving...</span>
+                      </span>
+                    )}
+                    {saveStatus === 'saved' && (
+                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                        <CheckCircle2 size={12} />
+                        <span>Saved ({lastSavedTime})</span>
+                      </span>
+                    )}
+                    {saveStatus === 'offline' && (
+                      <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                        <AlertCircle size={12} />
+                        <span>Saved locally (Offline)</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="hidden xl:inline text-[var(--border-medium)]">|</span>
+                  <span className="hidden xl:inline text-[var(--text-muted)] text-[11px] shrink-0">
                     {stats.words} words &bull; {stats.chars} chars &bull; {stats.readingTimeMins}m read
                   </span>
                 </div>
 
                 {/* Right Action Icons: AI Assist, Export, Share */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Manual Save Button */}
                   <button
-                    onClick={() => setIsAIAssistantOpen(!isAIAssistantOpen)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${isAIAssistantOpen
-                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                      : 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white'
-                      }`}
-                    title="Toggle AI Writing Assistant"
+                    onClick={handleManualSave}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] text-[var(--text-primary)] transition-colors"
+                    title="Save Note (Ctrl+S)"
                   >
-                    <Sparkles size={13} />
-                    <span className="hidden sm:inline">AI Assistant</span>
+                    <Save size={13} />
+                    <span className="hidden sm:inline">Save</span>
                   </button>
 
+                  {/* Copy Button */}
                   <button
-                    onClick={handleDownloadMarkdown}
+                    onClick={handleCopyContent}
                     className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
-                    title="Download Markdown (.md)"
+                    title="Copy Note Content"
                   >
-                    <Download size={15} />
+                    <Copy size={14} />
                   </button>
 
+                  {/* Word Download (.doc) */}
+                  <button
+                    onClick={handleDownloadDocx}
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
+                    title="Download as Word Document (.doc)"
+                  >
+                    <FileDown size={14} />
+                  </button>
+
+                  {/* Print / Save PDF */}
                   <button
                     onClick={handlePrint}
                     className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
                     title="Print / Save PDF"
                   >
-                    <Printer size={15} />
+                    <Printer size={14} />
                   </button>
 
+                  {/* Download Markdown (.md) */}
                   <button
-                    onClick={() => onOpenShareModal(currentNote)}
+                    onClick={handleDownloadMarkdown}
                     className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
-                    title="Share Note with Permissions"
+                    title="Download Markdown (.md)"
                   >
-                    <Share2 size={15} />
+                    <Download size={14} />
+                  </button>
+
+                  {/* Move to Notebook dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveOpen(!isMoveOpen)}
+                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
+                      title="Move to Notebook"
+                    >
+                      <FolderSymlink size={14} />
+                    </button>
+                    {isMoveOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-1.5 z-40">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
+                          Move Note to Notebook
+                        </div>
+                        {notebooks.length > 0 ? (
+                          notebooks.map((nb) => (
+                            <button
+                              key={nb.id}
+                              onClick={() => handleMoveToNotebook(nb.id)}
+                              className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-[var(--bg-card-hover)] text-[var(--text-primary)] truncate flex items-center gap-1.5"
+                            >
+                              <span>📁</span>
+                              <span className="truncate">{nb.title}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-2 py-2 text-xs text-[var(--text-muted)]">No notebooks found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Archive Note */}
+                  <button
+                    onClick={() => handleToggleArchive()}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      currentNote.isArchived
+                        ? 'text-purple-600 bg-purple-50 dark:bg-purple-950/40'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]'
+                    }`}
+                    title={currentNote.isArchived ? 'Restore from Archive' : 'Archive Note'}
+                  >
+                    <Archive size={14} />
+                  </button>
+
+                  {/* Delete Note */}
+                  <button
+                    onClick={() => setNoteToDelete(currentNote)}
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 hover:bg-[var(--bg-card-hover)]"
+                    title="Delete Note"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+
+                  {/* AI Assistant Toggle */}
+                  <button
+                    onClick={() => setIsAIAssistantOpen(!isAIAssistantOpen)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ml-1 ${
+                      isAIAssistantOpen
+                        ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                        : 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white'
+                    }`}
+                    title="Toggle AI Writing Assistant"
+                  >
+                    <Sparkles size={13} />
+                    <span className="hidden sm:inline">AI Assist</span>
                   </button>
                 </div>
               </div>
 
-              {/* Formatting Toolbar */}
-              <div className="px-4 py-1.5 border-b border-[var(--border-subtle)] bg-[var(--bg-input)]/50 flex flex-wrap items-center gap-1 text-xs shrink-0">
-                <button
-                  onClick={handleUndo}
-                  disabled={historyIndex <= 0}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <Undo size={14} />
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                  title="Redo (Ctrl+Y)"
-                >
-                  <Redo size={14} />
-                </button>
+              {/* Formatting Toolbar - Only visible in Editor mode */}
+              {viewMode === 'editor' && (
+                <div className="px-4 py-1.5 border-b border-[var(--border-subtle)] bg-[var(--bg-input)]/50 flex flex-wrap items-center gap-1 text-xs shrink-0 animate-in fade-in duration-150">
+                  <button
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                    title="Undo (Ctrl+Z)"
+                  >
+                    <Undo size={14} />
+                  </button>
+                  <button
+                    onClick={handleRedo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                    title="Redo (Ctrl+Y)"
+                  >
+                    <Redo size={14} />
+                  </button>
 
-                <span className="text-[var(--border-subtle)]">|</span>
+                  <span className="text-[var(--border-subtle)]">|</span>
 
-                <button
-                  onClick={() => applyFormatting('# ', '', 'Heading 1')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Heading 1"
-                >
-                  <Heading1 size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('## ', '', 'Heading 2')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Heading 2"
-                >
-                  <Heading2 size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('### ', '', 'Heading 3')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Heading 3"
-                >
-                  <Heading3 size={14} />
-                </button>
+                  <button
+                    onClick={() => applyFormatting('# ', '', 'Heading 1')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Heading 1"
+                  >
+                    <Heading1 size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('## ', '', 'Heading 2')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Heading 2"
+                  >
+                    <Heading2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('### ', '', 'Heading 3')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Heading 3"
+                  >
+                    <Heading3 size={14} />
+                  </button>
 
-                <span className="text-[var(--border-subtle)]">|</span>
+                  <span className="text-[var(--border-subtle)]">|</span>
 
-                <button
-                  onClick={() => applyFormatting('**', '**', 'bold text')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] font-bold"
-                  title="Bold (Ctrl+B)"
-                >
-                  <Bold size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('*', '*', 'italic text')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] italic"
-                  title="Italic (Ctrl+I)"
-                >
-                  <Italic size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('<u>', '</u>', 'underlined text')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] underline"
-                  title="Underline"
-                >
-                  <Underline size={14} />
-                </button>
+                  <button
+                    onClick={() => applyFormatting('**', '**', 'bold text')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] font-bold"
+                    title="Bold (Ctrl+B)"
+                  >
+                    <Bold size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('*', '*', 'italic text')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] italic"
+                    title="Italic (Ctrl+I)"
+                  >
+                    <Italic size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('<u>', '</u>', 'underlined text')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] underline"
+                    title="Underline"
+                  >
+                    <Underline size={14} />
+                  </button>
 
-                <span className="text-[var(--border-subtle)]">|</span>
+                  <span className="text-[var(--border-subtle)]">|</span>
 
-                <button
-                  onClick={() => applyFormatting('- ', '', 'list item')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Bullet List"
-                >
-                  <List size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('1. ', '', 'ordered item')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Numbered List"
-                >
-                  <ListOrdered size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('- [ ] ', '', 'todo item')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Checklist"
-                >
-                  <CheckSquare size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('```\n', '\n```', 'code here')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Code Block"
-                >
-                  <Code size={14} />
-                </button>
-                <button
-                  onClick={() => applyFormatting('[', '](https://example.com)', 'link text')}
-                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  title="Hyperlink"
-                >
-                  <LinkIcon size={14} />
-                </button>
-              </div>
+                  <button
+                    onClick={() => applyFormatting('- ', '', 'list item')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Bullet List"
+                  >
+                    <List size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('1. ', '', 'ordered item')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Numbered List"
+                  >
+                    <ListOrdered size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('- [ ] ', '', 'todo item')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Checklist"
+                  >
+                    <CheckSquare size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('```\n', '\n```', 'code here')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Code Block"
+                  >
+                    <Code size={14} />
+                  </button>
+                  <button
+                    onClick={() => applyFormatting('[', '](https://example.com)', 'link text')}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    title="Hyperlink"
+                  >
+                    <LinkIcon size={14} />
+                  </button>
+                </div>
+              )}
 
               {/* Title & Attached Sources Bar */}
               <div className="px-6 sm:px-10 pt-4 pb-2 shrink-0">
@@ -940,15 +1165,37 @@ export const MyNotesView: React.FC<MyNotesViewProps> = ({
                 </div>
               </div>
 
-              {/* Main Writing Canvas */}
-              <div className="flex-1 px-6 sm:px-10 pb-6 overflow-hidden flex flex-col">
-                <textarea
-                  ref={textareaRef}
-                  value={activeContent}
-                  onChange={handleContentChange}
-                  placeholder="Start writing or typing Markdown... (Select text to use AI Writing Assistant)"
-                  className="w-full flex-1 bg-transparent text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none resize-none leading-relaxed font-sans placeholder:text-[var(--text-faint)]"
-                />
+              {/* Main Content Area: Document View vs Editor View */}
+              <div className="flex-1 px-6 sm:px-10 pb-6 overflow-y-auto flex flex-col">
+                {viewMode === 'document' ? (
+                  <div className="py-4 flex-1">
+                    {activeContent.trim() ? (
+                      <RichDocumentContent
+                        content={activeContent}
+                        className="max-w-4xl mx-auto"
+                      />
+                    ) : (
+                      <div className="text-center py-16 text-[var(--text-muted)] space-y-3">
+                        <FileText size={36} className="mx-auto opacity-30" />
+                        <p className="text-sm font-medium">This note has no written content yet.</p>
+                        <button
+                          onClick={() => setViewMode('editor')}
+                          className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-xs font-semibold shadow-xs hover:opacity-90"
+                        >
+                          Switch to Editor to write content
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <textarea
+                    ref={textareaRef}
+                    value={activeContent}
+                    onChange={handleContentChange}
+                    placeholder="Start writing or typing Markdown... (Select text to use AI Writing Assistant)"
+                    className="w-full flex-1 min-h-[400px] bg-transparent text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none resize-none leading-relaxed font-sans placeholder:text-[var(--text-faint)]"
+                  />
+                )}
               </div>
             </>
           ) : (
